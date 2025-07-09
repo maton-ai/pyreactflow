@@ -14,9 +14,9 @@ from pyreactflow.node import Node, NodesGroup
 
 class ReactFlow(NodesGroup):
     """
-    Flowchart is a no-tails-NodesGroup with a flowchart() method.
+    ReactFlow is a no-tails-NodesGroup with an export() method.
 
-    Calls flowchart method of Flowchart instance to get a flowchart.js DSL.
+    Calls export method of ReactFlow instance to get a react-flow compatible nodes and edges.
     """
 
     def __init__(self, head_node: Node):
@@ -33,14 +33,14 @@ class ReactFlow(NodesGroup):
 
         Args:
 
-            code:  str,  Python code to draw flowchart
-            field: str,  path to field (function) you want to draw flowchart
+            code:  str,  Python code to generate react-flow compatible nodes and edges
+            field: str,  path to field (function) you want to generate react-flow compatible nodes and edges
             inner: bool, True: parse the body of field; Field: parse the body as an object
             simplify: bool, for If & Loop statements: simplify the one-line-body or not.
             conds_align: bool, for consecutive If statements: conditionNode alignment support (Issue#14) or not
 
         Returns:
-            A Flowchart instance parsed from given code.
+            A ReactFlow instance parsed from given code.
 
         `inner=True` means parse `field.body`, otherwise parse [field]. E.g.
 
@@ -52,7 +52,7 @@ class ReactFlow(NodesGroup):
         inner=True  => `st (function a) -> subroutine (print) -> end`
         inner=False => `op=>operation: def a(): print('a')`
 
-        The field is the path to the target of flowchartilizing.
+        The field is the path to the target of workflow def generation.
         It should be the *path* to a `def` code block in code. E.g.
 
         ```
