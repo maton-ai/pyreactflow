@@ -372,6 +372,115 @@ class ReactFlow(NodesGroup):
             if self._check_reachable_in_branch(container_node.child, target_node):
                 return True
         
+        # For loop bodies: Follow sequential connections within the same structural scope
+        # This is needed because loop bodies often have multiple sequential statements
+        if hasattr(container_node, 'connections') and container_node.connections:
+            for conn in container_node.connections:
+                if hasattr(conn, 'next_node') and conn.next_node:
+                    # Check if this is a sequential connection within the same scope
+                    if self._is_sequential_connection_in_loop_body(container_node, conn.next_node, target_node, visited):
+                        return True
+        
+        return False
+    
+    def _is_sequential_connection_in_loop_body(self, start_node, next_node, target_node, visited, max_depth=10):
+        """Check if next_node leads to target_node through sequential connections within a loop body."""
+        if max_depth <= 0 or not next_node or id(next_node) in visited:
+            return False
+        
+        # Direct match
+        if next_node == target_node:
+            return True
+        
+        # Add to visited to avoid cycles
+        current_visited = visited.copy()
+        current_visited.add(id(next_node))
+        
+        # For wrapper nodes (CondYN), check their sub
+        if hasattr(next_node, 'sub') and next_node.sub:
+            if next_node.sub == target_node:
+                return True
+            # Continue checking sequentially from the sub
+            if self._is_sequential_connection_in_loop_body(next_node, next_node.sub, target_node, current_visited, max_depth - 1):
+                return True
+        
+        # Follow sequential connections within the loop body
+        if hasattr(next_node, 'connections') and next_node.connections:
+            for conn in next_node.connections:
+                if hasattr(conn, 'next_node') and conn.next_node:
+                    # Don't follow back to the loop condition (this would be a loop back edge)
+                    if (hasattr(conn.next_node, 'node_name') and 
+                        hasattr(start_node, 'node_name') and
+                        conn.next_node.node_name.startswith('cond')):
+                        continue
+                    
+                    if self._is_sequential_connection_in_loop_body(next_node, conn.next_node, target_node, current_visited, max_depth - 1):
+                        return True
+        
+        return False
+    
+    def _is_statement_sequential_after_loop(self, statement_node, loop_node, all_nodes):
+        """Check if a statement comes sequentially after a loop (not inside it)."""
+        try:
+            # Look for edges that go from the loop to this statement
+            # This would indicate the statement is sequential after the loop
+            loop_edges = loop_node.to_react_flow_edges()
+            statement_node_name = getattr(statement_node, 'node_name', None)
+            
+            if statement_node_name:
+                for edge in loop_edges:
+                    if edge['target'] == statement_node_name:
+                        # The loop connects directly to this statement, so it's sequential after
+                        return True
+            
+            # Also check if this statement is reachable through the loop's no/exit connection
+            # In complex if/else cases, statements after loops might be connected via the condition's no branch
+            if hasattr(loop_node, 'connection_no') and loop_node.connection_no:
+                no_next = loop_node.connection_no.next_node
+                # Check if the statement is reachable through the exit path
+                if self._is_reachable_through_exit_path(no_next, statement_node):
+                    return True
+            
+            return False
+        except (AttributeError, TypeError):
+            return False
+    
+    def _is_reachable_through_exit_path(self, start_node, target_node, visited=None, max_depth=5):
+        """Check if target is reachable through exit/sequential path from start."""
+        if visited is None:
+            visited = set()
+        
+        if not start_node or id(start_node) in visited or max_depth <= 0:
+            return False
+        
+        if start_node == target_node:
+            return True
+        
+        visited.add(id(start_node))
+        
+        # Follow sequential connections but avoid going back into loop bodies
+        if hasattr(start_node, 'connections') and start_node.connections:
+            for conn in start_node.connections:
+                if hasattr(conn, 'next_node') and conn.next_node:
+                    # Skip connections that would take us back into loop bodies
+                    if (hasattr(conn.next_node, 'node_name') and 
+                        conn.next_node.node_name.startswith('cond') and
+                        hasattr(conn.next_node, 'connection_yes')):
+                        # This is likely a loop condition, don't follow
+                        continue
+                    
+                    if self._is_reachable_through_exit_path(conn.next_node, target_node, visited, max_depth - 1):
+                        return True
+        
+        # For wrapper nodes, check their sub/child
+        if hasattr(start_node, 'sub') and start_node.sub:
+            if self._is_reachable_through_exit_path(start_node.sub, target_node, visited, max_depth - 1):
+                return True
+        
+        if hasattr(start_node, 'child') and start_node.child:
+            if self._is_reachable_through_exit_path(start_node.child, target_node, visited, max_depth - 1):
+                return True
+        
         return False
     
     
@@ -1262,27 +1371,26 @@ class ReactFlow(NodesGroup):
         for orig_node, react_node in all_nodes:
             if react_node['type'] == 'loop':  # Only loops can be parents, not conditions
                 if self._is_child_of_parent(statement_node, orig_node):
-                    # Additional validation: check for false positives
+                    # For normal loops, all contained statements should have the loop as parent
+                    # unless they are clearly top-level statements that come after the loop
                     statement_text = getattr(statement_node, 'node_text', '')
-                    loop_text = getattr(orig_node, 'node_text', '')
                     
-                    # Heuristic: check for statements that are after loops, not inside them
-                    if 'customer_id' in loop_text:
-                        # Case 1: notify calls - only the one with customer_id parameter is inside
-                        if 'notify_customer' in statement_text:
-                            if 'customer_id)' in statement_text:
-                                return react_node['id']
-                            else:
-                                # This might be the one after the loop, skip
-                                continue
-                        
-                        # Case 2: results.append calls - only the one processing customer should be inside
-                        if 'results.append' in statement_text:
-                            if 'process_customer' in statement_text:
-                                return react_node['id']
-                            else:
-                                # This might be the one after the loop (append empty string), skip
-                                continue
+                    # Only exclude statements that are clearly sequential after the loop
+                    # Be more specific about what constitutes "after" vs "inside" a loop
+                    
+                    # Check if this looks like a final/cleanup statement that comes after loops
+                    if 'final' in statement_text.lower():
+                        # This looks like a cleanup statement after the loop
+                        continue
+                    
+                    # For statements with empty string parameters, they might be cleanup statements
+                    # that come after loops rather than being part of the loop body
+                    if (statement_text.strip().endswith('("")') or statement_text.strip().endswith("('')")) and \
+                       any(word in statement_text for word in ['notify', 'append']):
+                        # This pattern suggests it's a cleanup/default statement after the loop
+                        # Check if it's actually reachable through loop exit rather than being in the body
+                        if self._is_statement_sequential_after_loop(statement_node, orig_node, all_nodes):
+                            continue
                     
                     return react_node['id']
         

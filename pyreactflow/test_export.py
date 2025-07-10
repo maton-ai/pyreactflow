@@ -626,6 +626,106 @@ def main() -> list[str]:
     ])
     assert expected_edges == actual_edges
 
+def test_export_from_code_sequential_steps_in_loop():
+    code = '''
+@flow
+def main(
+    stripe_api_key: str,
+    hubspot_api_key: str,
+    openai_api_key: str,
+    slack_webhook_url: str,
+    slack_channel: str
+) -> list[str]:
+    customers = fetch_new_stripe_customers(stripe_api_key)
+    summaries: list[str] = []
+    for customer in customers:
+        create_hubspot_contact(customer, hubspot_api_key)
+        email = customer.get("email", "")
+        domain = email.split("@")[1] if "@" in email else ""
+        metadata = fetch_company_metadata(domain)
+        summary = summarize_company(metadata, openai_api_key)
+        send_slack_message(summary, slack_webhook_url, slack_channel)
+        summaries.append(summary)
+    return summaries
+'''
+    flow = ReactFlow.from_code(code, field="main", simplify=False, inner=False)
+    result = flow.export()
+
+    # Expected nodes (type, label)
+    expected_nodes = set([
+        ("start", "input: stripe_api_key, hubspot_api_key, openai_api_key, slack_webhook_url, slack_channel"),
+        ("operation", "customers = fetch_new_stripe_customers(stripe_api_key)"),
+        ("operation", "summaries: list[str] = []"),
+        ("loop", "for customer in customers"),
+        ("subroutine", "create_hubspot_contact(customer, hubspot_api_key)"),
+        ("operation", "email = customer.get('email', '')"),
+        ("operation", "domain = email.split('@')[1] if '@' in email else ''"),
+        ("operation", "metadata = fetch_company_metadata(domain)"),
+        ("operation", "summary = summarize_company(metadata, openai_api_key)"),
+        ("subroutine", "send_slack_message(summary, slack_webhook_url, slack_channel)"),
+        ("subroutine", "summaries.append(summary)"),
+        ("end", "output:  summaries"),
+    ])
+    actual_nodes = set((n['type'], n['data']['label']) for n in result['nodes'])
+    assert expected_nodes == actual_nodes
+
+    # Expected parent relationships (label -> parent_label or None)
+    expected_parents = {
+        "input: stripe_api_key, hubspot_api_key, openai_api_key, slack_webhook_url, slack_channel": None,
+        "customers = fetch_new_stripe_customers(stripe_api_key)": None,
+        "summaries: list[str] = []": None,
+        "for customer in customers": None,
+        "create_hubspot_contact(customer, hubspot_api_key)": "for customer in customers",
+        "email = customer.get('email', '')": "for customer in customers",
+        "domain = email.split('@')[1] if '@' in email else ''": "for customer in customers",
+        "metadata = fetch_company_metadata(domain)": "for customer in customers",
+        "summary = summarize_company(metadata, openai_api_key)": "for customer in customers",
+        "send_slack_message(summary, slack_webhook_url, slack_channel)": "for customer in customers",
+        "summaries.append(summary)": "for customer in customers",
+        "output:  summaries": None,
+    }
+    
+    # Build label to nodes mapping
+    label_to_nodes = {}
+    for n in result['nodes']:
+        label_to_nodes.setdefault(n['data']['label'], []).append(n)
+    
+    # Check parent relationships
+    for label, parent_label in expected_parents.items():
+        for node in label_to_nodes.get(label, []):
+            if parent_label is None:
+                assert 'parentId' not in node, f"Node '{label}' should not have parent but has {node.get('parentId')}"
+            else:
+                # Find the expected parent node id by label
+                parent_nodes = label_to_nodes.get(parent_label, [])
+                assert parent_nodes, f"Expected parent node with label '{parent_label}' not found"
+                parent_ids = {pn['id'] for pn in parent_nodes}
+                assert node.get('parentId') in parent_ids, f"Node '{label}' should have parentId in {parent_ids}, got {node.get('parentId')}"
+
+    # Expected edges (source_label, target_label, edge_label)
+    label_map = {n['id']: n['data']['label'] for n in result['nodes']}
+    def edge_tuple(e):
+        return (
+            label_map.get(e['source'], e['source']),
+            label_map.get(e['target'], e['target']),
+            e.get('label', None)
+        )
+    actual_edges = set(edge_tuple(e) for e in result['edges'])
+    expected_edges = set([
+        ("input: stripe_api_key, hubspot_api_key, openai_api_key, slack_webhook_url, slack_channel", "customers = fetch_new_stripe_customers(stripe_api_key)", None),
+        ("customers = fetch_new_stripe_customers(stripe_api_key)", "summaries: list[str] = []", None),
+        ("summaries: list[str] = []", "for customer in customers", None),
+        ("for customer in customers", "output:  summaries", None),
+        ("create_hubspot_contact(customer, hubspot_api_key)", "email = customer.get('email', '')", None),
+        ("email = customer.get('email', '')", "domain = email.split('@')[1] if '@' in email else ''", None),
+        ("domain = email.split('@')[1] if '@' in email else ''", "metadata = fetch_company_metadata(domain)", None),
+        ("metadata = fetch_company_metadata(domain)", "summary = summarize_company(metadata, openai_api_key)", None),
+        ("summary = summarize_company(metadata, openai_api_key)", "send_slack_message(summary, slack_webhook_url, slack_channel)", None),
+        ("send_slack_message(summary, slack_webhook_url, slack_channel)", "summaries.append(summary)", None),
+    ])
+    assert expected_edges == actual_edges
+    
+
 def test_export_from_code_check_structured_task_data():
     """Test export for structured task data extraction logic"""
     code = '''
