@@ -354,6 +354,119 @@ def main() -> list[str]:
     
     assert expected_edges == actual_edges
 
+def test_export_from_code_condition_node_yes_only():
+    code = '''
+@flow
+def main() -> str:
+    # 1. Create spreadsheet
+    spreadsheet_id = create_spreadsheet()
+
+    # Prepare header row
+    header = ["Title", "Image URL", "Price", "Description", "Hype Level", "Resale Value", "Link"]
+    append_row_to_sheet(spreadsheet_id, "Sheet1!A1:G1", header)
+
+    # 2. Fetch and parse
+    html = fetch_nike_upcoming_drops()
+    products = parse_html(html)
+
+    # 3. Load existing links
+    existing = get_existing_links(spreadsheet_id, "Sheet1!G2:G")
+
+    # 4 & 5. Analyze and append only new products
+    for p in products:
+        if p["Link"] not in existing:
+            enriched = analyze_product(p)
+            row = [
+                enriched["Title"],
+                enriched["Image URL"],
+                enriched["Price"],
+                enriched["Description"],
+                enriched["Hype Level"],
+                enriched["Resale Value"],
+                enriched["Link"]
+            ]
+            append_row_to_sheet(spreadsheet_id, "Sheet1!A2:G2", row)
+
+    return spreadsheet_id
+    '''
+    flow = ReactFlow.from_code(code, field="main", simplify=False, inner=False)
+    result = flow.export()
+
+    # Expected nodes (type, label)
+    expected_nodes = set([
+        ("start", "input:"),
+        ("operation", "spreadsheet_id = create_spreadsheet()"),
+        ("operation", "header = ['Title', 'Image URL', 'Price', 'Description', 'Hype Level', 'Resale Value', 'Link']"),
+        ("subroutine", "append_row_to_sheet(spreadsheet_id, 'Sheet1!A1:G1', header)"),
+        ("operation", "html = fetch_nike_upcoming_drops()"),
+        ("operation", "products = parse_html(html)"),
+        ("operation", "existing = get_existing_links(spreadsheet_id, 'Sheet1!G2:G')"),
+        ("loop", "for p in products"),
+        ("condition", "p['Link'] not in existing"),
+        ("operation", "enriched = analyze_product(p)"),
+        ("operation", "row = [enriched['Title'], enriched['Image URL'], enriched['Price'], enriched['Description'], enriched['Hype Level'], enriched['Resale Value'], enriched['Link']]"),
+        ("subroutine", "append_row_to_sheet(spreadsheet_id, 'Sheet1!A2:G2', row)"),
+        ("end", "output:  spreadsheet_id"),
+    ])
+    actual_nodes = set((n['type'], n['data']['label']) for n in result['nodes'])
+    assert expected_nodes == actual_nodes
+
+    # Expected parent relationships (label -> parent_label or None)
+    expected_parents = {
+        "input:": None,
+        "spreadsheet_id = create_spreadsheet()": None,
+        "header = ['Title', 'Image URL', 'Price', 'Description', 'Hype Level', 'Resale Value', 'Link']": None,
+        "append_row_to_sheet(spreadsheet_id, 'Sheet1!A1:G1', header)": None,
+        "html = fetch_nike_upcoming_drops()": None,
+        "products = parse_html(html)": None,
+        "existing = get_existing_links(spreadsheet_id, 'Sheet1!G2:G')": None,
+        "for p in products": None,
+        "p['Link'] not in existing": "for p in products",
+        "enriched = analyze_product(p)": "for p in products",
+        "row = [enriched['Title'], enriched['Image URL'], enriched['Price'], enriched['Description'], enriched['Hype Level'], enriched['Resale Value'], enriched['Link']]": "for p in products",
+        "append_row_to_sheet(spreadsheet_id, 'Sheet1!A2:G2', row)": "for p in products",
+        "output:  spreadsheet_id": None,
+    }
+
+    # Build label to nodes mapping
+    label_to_nodes = {}
+    for n in result['nodes']:
+        label_to_nodes.setdefault(n['data']['label'], []).append(n)
+
+    # Check parent relationships
+    label_to_parent = {}
+    node_map = {n['id']: n for n in result['nodes']}
+    for node in result['nodes']:
+        label = node['data']['label']
+        parent_id = node.get('parentId')
+        parent_label = node_map[parent_id]['data']['label'] if parent_id else None
+        label_to_parent[label] = parent_label
+
+    assert expected_parents == label_to_parent
+
+    # Expected edges (source_label, target_label, edge_label)
+    label_map = {n['id']: n['data']['label'] for n in result['nodes']}
+    def edge_tuple(e):
+        return (
+            label_map.get(e['source'], e['source']),
+            label_map.get(e['target'], e['target']),
+            e.get('label', None)
+        )
+    actual_edges = set(edge_tuple(e) for e in result['edges'])
+    expected_edges = set([
+        ("input:", "spreadsheet_id = create_spreadsheet()", None),
+        ("spreadsheet_id = create_spreadsheet()", "header = ['Title', 'Image URL', 'Price', 'Description', 'Hype Level', 'Resale Value', 'Link']", None),
+        ("header = ['Title', 'Image URL', 'Price', 'Description', 'Hype Level', 'Resale Value', 'Link']", "append_row_to_sheet(spreadsheet_id, 'Sheet1!A1:G1', header)", None),
+        ("append_row_to_sheet(spreadsheet_id, 'Sheet1!A1:G1', header)", "html = fetch_nike_upcoming_drops()", None),
+        ("html = fetch_nike_upcoming_drops()", "products = parse_html(html)", None),
+        ("products = parse_html(html)", "existing = get_existing_links(spreadsheet_id, 'Sheet1!G2:G')", None),
+        ("existing = get_existing_links(spreadsheet_id, 'Sheet1!G2:G')", "for p in products", None),
+        ("p['Link'] not in existing", "enriched = analyze_product(p)", "Yes"),
+        ("enriched = analyze_product(p)", "row = [enriched['Title'], enriched['Image URL'], enriched['Price'], enriched['Description'], enriched['Hype Level'], enriched['Resale Value'], enriched['Link']]", None),
+        ("row = [enriched['Title'], enriched['Image URL'], enriched['Price'], enriched['Description'], enriched['Hype Level'], enriched['Resale Value'], enriched['Link']]", "append_row_to_sheet(spreadsheet_id, 'Sheet1!A2:G2', row)", None),
+        ("for p in products", "output:  spreadsheet_id", None),
+    ])
+    assert expected_edges == actual_edges
 
 def test_export_from_code_condition_node_merge():
     code = '''
