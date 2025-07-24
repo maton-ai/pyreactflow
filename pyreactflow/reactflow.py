@@ -1246,8 +1246,15 @@ class ReactFlow(NodesGroup):
         for orig_node, react_node in all_nodes:
             if react_node['type'] == 'condition':
                 # Check if this condition is top-level (no parent)
-                condition_parent = self._find_simple_parent(orig_node, all_nodes)
-                if condition_parent is None:
+                # A condition is top-level if it's not contained within any loop
+                condition_is_top_level = True
+                for loop_orig, loop_react in all_nodes:
+                    if loop_react['type'] == 'loop':
+                        if self._is_child_of_parent(orig_node, loop_orig):
+                            condition_is_top_level = False
+                            break
+
+                if condition_is_top_level:
                     # This is a top-level condition, check its edges
                     edges = orig_node.to_react_flow_edges()
                     for edge in edges:
@@ -1366,6 +1373,45 @@ class ReactFlow(NodesGroup):
                 if self._is_child_of_parent(statement_node, outermost_loop[0]):
                     return outermost_loop[1]['id']
         
+        # Check if this statement is connected to a condition that has a loop parent
+        # OR if it's connected to a statement that has a loop parent (sequential chain)
+        statement_node_name = getattr(statement_node, 'node_name', None)
+        if statement_node_name:
+            # First, check direct connection to conditions
+            for orig_condition, react_condition in all_nodes:
+                if react_condition['type'] == 'condition':
+                    # Check if this condition has an edge to our statement
+                    edges = orig_condition.to_react_flow_edges()
+                    for edge in edges:
+                        if edge['target'] == statement_node_name:
+                            # This statement is connected to this condition via an edge
+                            # Check if the condition has a loop parent
+                            condition_parent = None
+                            for loop_orig, loop_react in all_nodes:
+                                if loop_react['type'] == 'loop':
+                                    if self._is_child_of_parent(orig_condition, loop_orig):
+                                        condition_parent = loop_react['id']
+                                        break
+
+                            if condition_parent:
+                                # The condition is inside a loop, so assign the statement to that loop
+                                return condition_parent
+
+            # Second, check if connected to another statement that already has a loop parent
+            # This handles sequential chains after condition-connected statements
+            for orig_statement, react_statement in all_nodes:
+                if react_statement['type'] in ['operation', 'subroutine'] and react_statement.get('parentId'):
+                    # This statement has a parent - check if it has an edge to our statement
+                    edges = orig_statement.to_react_flow_edges()
+                    for edge in edges:
+                        if edge['target'] == statement_node_name:
+                            # Our statement is connected to a statement that has a parent
+                            # Find the parent node to check if it's a loop
+                            for check_orig, check_react in all_nodes:
+                                if check_react['id'] == react_statement['parentId'] and check_react['type'] == 'loop':
+                                    # The parent is a loop, so assign our statement to the same loop
+                                    return react_statement['parentId']
+
         # Normal scenario: find immediate parent, but ONLY consider loop nodes as parents
         # Condition nodes should never be parents - they use edges for connections
         for orig_node, react_node in all_nodes:
