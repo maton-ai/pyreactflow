@@ -294,8 +294,9 @@ class AstConditionNode(AstNode, ConditionNode):
             iter_expr = astunparse.unparse(self.ast_object.iter).strip()
             return f"for {target} in {iter_expr}"
         elif isinstance(self.ast_object, _ast.While):
-            # For while loops, extract only the test condition
-            condition_ast = self.ast_object.test
+            # For while loops, include the 'while' keyword with the condition
+            test_condition = astunparse.unparse(self.ast_object.test).strip()
+            return f"while {test_condition}"
         else:
             # Fallback to the original method
             source = astunparse.unparse(self.ast_object)
