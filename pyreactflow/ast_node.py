@@ -1627,6 +1627,11 @@ def parse(ast_list: List[_ast.AST], **kwargs) -> ParseProcessGraph:
         # special case: special stmt as a expr value. e.g. function call
         if type(ast_object) == _ast.Expr:
             if hasattr(ast_object, "value"):
+                # Skip docstrings (string literals at the beginning of functions/modules)
+                if isinstance(ast_object.value, _ast.Constant) and isinstance(ast_object.value.value, str):
+                    continue  # Skip docstring expressions
+                elif sys.version_info < (3, 8) and isinstance(ast_object.value, _ast.Str):
+                    continue  # Skip docstring expressions for older Python versions
                 ast_node_class = __special_stmts.get(type(ast_object.value), CommonOperation)
             else:  # ast_object has no value attribute
                 ast_node_class = CommonOperation
