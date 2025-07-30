@@ -1339,6 +1339,13 @@ class ReactFlow(NodesGroup):
     
     def _find_statement_parent(self, statement_node, all_nodes):
         """Find the loop parent for a statement node with depth limit flattening."""
+        # Special case for while loops: be more aggressive in assigning loop parents
+        # For while loops, use a simpler approach - if there's a while loop, and this statement
+        # is not clearly top-level, assign it to the while loop
+        while_loop_id = self._find_while_loop_parent_simple(statement_node, all_nodes)
+        if while_loop_id:
+            return while_loop_id
+
         # First check: if this statement is connected to a TOP-LEVEL condition node via an edge,
         # it should NOT have a parent (conditions use edges, not parent-child relationships)
         # But if it's connected to a condition that's inside a loop, it can still have the loop as parent
@@ -1509,6 +1516,144 @@ class ReactFlow(NodesGroup):
         
         return None
     
+    def _find_while_loop_parent_simple(self, statement_node, all_nodes):
+        """Simple heuristic for while loop parent assignment."""
+        from pyreactflow.ast_node import LoopCondition
+
+        # Find any while loops in the nodes
+        while_loops = []
+        for orig_node, react_node in all_nodes:
+            if (react_node['type'] == 'loop' and
+                isinstance(orig_node, LoopCondition) and
+                hasattr(orig_node, 'ast_object') and
+                hasattr(orig_node.ast_object, 'test')):
+                while_loops.append((orig_node, react_node))
+
+        if not while_loops:
+            return None
+
+        # For while loops, use a simpler heuristic:
+        # If there's exactly one while loop, and this statement is not clearly top-level,
+        # assign it to the while loop
+        if len(while_loops) == 1:
+            while_loop_orig, while_loop_react = while_loops[0]
+
+            # Get the statement's react node to check its type and content
+            statement_react = None
+            for orig, react in all_nodes:
+                if orig == statement_node:
+                    statement_react = react
+                    break
+
+            if statement_react:
+                statement_label = statement_react['data']['label']
+
+                # Skip clearly top-level statements (like input/output)
+                if statement_react['type'] in ('start', 'end'):
+                    return None
+
+                # Skip statements that look like initialization (before the loop)
+                # Be more specific to avoid false positives
+                if any(statement_label.startswith(pattern) for pattern in ['get_', 'load_', 'init_', 'setup_']):
+                    return None
+
+                # For while loops, most other statements should be inside the loop
+                # This is a simpler heuristic than trying to trace the complex AST structure
+                return while_loop_react['id']
+
+        return None
+
+    def _find_containing_while_loop(self, statement_node, all_nodes):
+        """Find a while loop that contains the given statement node."""
+        from pyreactflow.ast_node import LoopCondition
+
+        for orig_node, react_node in all_nodes:
+            if (react_node['type'] == 'loop' and
+                isinstance(orig_node, LoopCondition) and
+                hasattr(orig_node, 'ast_object') and
+                hasattr(orig_node.ast_object, 'test')):
+                # This is a while loop, check if it contains our statement
+                if self._statement_is_inside_while_loop(statement_node, orig_node):
+                    return react_node['id']
+        return None
+
+    def _statement_is_inside_while_loop(self, statement_node, while_loop_node):
+        """Check if a statement is inside a while loop (including through condition branches)."""
+        # Get the while loop body
+        if hasattr(while_loop_node, 'connection_yes') and while_loop_node.connection_yes:
+            loop_body = while_loop_node.connection_yes.next_node
+            return self._statement_is_in_loop_body(statement_node, loop_body, visited=set())
+        return False
+
+    def _statement_is_in_loop_body(self, statement_node, loop_body, visited=None, max_depth=10):
+        """Recursively check if statement is in the loop body structure."""
+        if visited is None:
+            visited = set()
+
+        if not loop_body or id(loop_body) in visited or max_depth <= 0:
+            return False
+
+        visited.add(id(loop_body))
+
+        # Direct match
+        if loop_body == statement_node:
+            return True
+
+        # Check sub/child relationships first
+        if hasattr(loop_body, 'sub') and loop_body.sub:
+            # Direct match with sub
+            if loop_body.sub == statement_node:
+                return True
+            # Recursive check in sub
+            if self._statement_is_in_loop_body(statement_node, loop_body.sub, visited, max_depth - 1):
+                return True
+
+        if hasattr(loop_body, 'child') and loop_body.child:
+            # Direct match with child
+            if loop_body.child == statement_node:
+                return True
+            # Recursive check in child
+            if self._statement_is_in_loop_body(statement_node, loop_body.child, visited, max_depth - 1):
+                return True
+
+        # For condition nodes, check both yes and no branches
+        if hasattr(loop_body, 'connection_yes') and loop_body.connection_yes:
+            yes_next = loop_body.connection_yes.next_node
+            if yes_next:
+                # Check direct match in yes branch
+                if yes_next == statement_node:
+                    return True
+                # Check if yes branch has a sub that matches
+                if hasattr(yes_next, 'sub') and yes_next.sub == statement_node:
+                    return True
+                # Recursive check in yes branch
+                if self._statement_is_in_loop_body(statement_node, yes_next, visited, max_depth - 1):
+                    return True
+
+        if hasattr(loop_body, 'connection_no') and loop_body.connection_no:
+            no_next = loop_body.connection_no.next_node
+            if no_next:
+                # Check direct match in no branch
+                if no_next == statement_node:
+                    return True
+                # Check if no branch has a sub that matches
+                if hasattr(no_next, 'sub') and no_next.sub == statement_node:
+                    return True
+                # Recursive check in no branch
+                if self._statement_is_in_loop_body(statement_node, no_next, visited, max_depth - 1):
+                    return True
+
+        # Check through connections (for sequential flow within loop)
+        if hasattr(loop_body, 'connections') and loop_body.connections:
+            for conn in loop_body.connections:
+                if hasattr(conn, 'next_node') and conn.next_node:
+                    next_node = conn.next_node
+                    # Recursive check through connections
+                    if self._statement_is_in_loop_body(statement_node, next_node, visited, max_depth - 1):
+                        return True
+
+        return False
+
     def _find_outermost_loop(self, all_nodes):
         """Find the outermost loop that has no loop parent."""
         loop_nodes = [(orig, react) for orig, react in all_nodes if react['type'] == 'loop']
