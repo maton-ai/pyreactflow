@@ -380,7 +380,7 @@ def main() -> None:
     # Expected nodes (type, label)
     expected_nodes = set([
         ("start", "input:"),
-        ("loop", "True"),
+        ("loop", "while True"),
         ("operation", "now = datetime.now()"),
         ("operation", "target_time = now.replace(hour=9, minute=0, second=0, microsecond=0)"),
         ("condition", "now >= target_time"),
@@ -397,16 +397,16 @@ def main() -> None:
     # Expected parent relationships (label -> parent_label or None)
     expected_parents = {
         "input:": None,
-        "True": None,
-        "now = datetime.now()": "True",
-        "target_time = now.replace(hour=9, minute=0, second=0, microsecond=0)": "True",
-        "now >= target_time": "True",
-        "pokemon = fetch_random_pokemon()": "True",
-        "print(pokemon)": "True",
-        "next_run = target_time + timedelta(days=1)": "True",
-        "sleep_secs = (next_run - now).total_seconds()": "True",
-        "sleep_secs = (target_time - now).total_seconds()": "True",
-        "time.sleep(sleep_secs)": "True",
+        "while True": None,
+        "now = datetime.now()": "while True",
+        "target_time = now.replace(hour=9, minute=0, second=0, microsecond=0)": "while True",
+        "now >= target_time": "while True",
+        "pokemon = fetch_random_pokemon()": "while True",
+        "print(pokemon)": "while True",
+        "next_run = target_time + timedelta(days=1)": "while True",
+        "sleep_secs = (next_run - now).total_seconds()": "while True",
+        "sleep_secs = (target_time - now).total_seconds()": "while True",
+        "time.sleep(sleep_secs)": "while True",
     }
 
     # Build label to nodes mapping
@@ -436,7 +436,7 @@ def main() -> None:
         )
     actual_edges = set(edge_tuple(e) for e in result['edges'])
     expected_edges = set([
-        ("input:", "True", None),
+        ("input:", "while True", None),
         ("now = datetime.now()", "target_time = now.replace(hour=9, minute=0, second=0, microsecond=0)", None),
         ("target_time = now.replace(hour=9, minute=0, second=0, microsecond=0)", "now >= target_time", None),
         ("now >= target_time", "pokemon = fetch_random_pokemon()", "Yes"),
