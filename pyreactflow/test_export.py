@@ -449,6 +449,104 @@ def main() -> None:
     ])
     assert expected_edges == actual_edges
 
+def test_export_from_code_exclude_docstring():
+    code = '''
+def main() -> None:
+    """
+    Runs daily at 9 AM to fetch and print a random Pokémon.
+    Random pokemon is fetched from PokeAPI.
+    """
+    while True:
+        now = datetime.now()
+        # Determine today's 9 AM
+        target_time = now.replace(hour=9, minute=0, second=0, microsecond=0)
+        if now >= target_time:
+            # It's past 9 AM: fetch and print, then schedule for next day
+            pokemon = fetch_random_pokemon()
+            print(pokemon)
+            next_run = target_time + timedelta(days=1)
+            sleep_secs = (next_run - now).total_seconds()
+        else:
+            # Before 9 AM: wait until 9 AM today
+            sleep_secs = (target_time - now).total_seconds()
+
+        time.sleep(sleep_secs)
+    '''
+
+    flow = ReactFlow.from_code(code, field="main", simplify=False, inner=False)
+    result = flow.export()
+
+    # Expected nodes (type, label)
+    expected_nodes = set([
+        ("start", "input:"),
+        ("loop", "while True"),
+        ("operation", "now = datetime.now()"),
+        ("operation", "target_time = now.replace(hour=9, minute=0, second=0, microsecond=0)"),
+        ("condition", "now >= target_time"),
+        ("operation", "pokemon = fetch_random_pokemon()"),
+        ("subroutine", "print(pokemon)"),
+        ("operation", "next_run = target_time + timedelta(days=1)"),
+        ("operation", "sleep_secs = (next_run - now).total_seconds()"),
+        ("operation", "sleep_secs = (target_time - now).total_seconds()"),
+        ("subroutine", "time.sleep(sleep_secs)"),
+    ])
+    actual_nodes = set((n['type'], n['data']['label']) for n in result['nodes'])
+    assert expected_nodes == actual_nodes
+
+    # Expected parent relationships (label -> parent_label or None)
+    expected_parents = {
+        "input:": None,
+        "while True": None,
+        "now = datetime.now()": "while True",
+        "target_time = now.replace(hour=9, minute=0, second=0, microsecond=0)": "while True",
+        "now >= target_time": "while True",
+        "pokemon = fetch_random_pokemon()": "while True",
+        "print(pokemon)": "while True",
+        "next_run = target_time + timedelta(days=1)": "while True",
+        "sleep_secs = (next_run - now).total_seconds()": "while True",
+        "sleep_secs = (target_time - now).total_seconds()": "while True",
+        "time.sleep(sleep_secs)": "while True",
+    }
+
+    # Build label to nodes mapping
+    label_to_nodes = {}
+    for n in result['nodes']:
+        label_to_nodes.setdefault(n['data']['label'], []).append(n)
+
+    # Check parent relationships
+    for label, parent_label in expected_parents.items():
+        for node in label_to_nodes.get(label, []):
+            if parent_label is None:
+                assert 'parentId' not in node, f"Node '{label}' should not have parent but has {node.get('parentId')}"
+            else:
+                # Find the expected parent node id by label
+                parent_nodes = label_to_nodes.get(parent_label, [])
+                assert parent_nodes, f"Expected parent node with label '{parent_label}' not found"
+                parent_ids = {pn['id'] for pn in parent_nodes}
+                assert node.get('parentId') in parent_ids, f"Node '{label}' should have parentId in {parent_ids}, got {node.get('parentId')}"
+
+    # Expected edges (source_label, target_label, edge_label)
+    label_map = {n['id']: n['data']['label'] for n in result['nodes']}
+    def edge_tuple(e):
+        return (
+            label_map.get(e['source'], e['source']),
+            label_map.get(e['target'], e['target']),
+            e.get('label', None)
+        )
+    actual_edges = set(edge_tuple(e) for e in result['edges'])
+    expected_edges = set([
+        ("input:", "while True", None),
+        ("now = datetime.now()", "target_time = now.replace(hour=9, minute=0, second=0, microsecond=0)", None),
+        ("target_time = now.replace(hour=9, minute=0, second=0, microsecond=0)", "now >= target_time", None),
+        ("now >= target_time", "pokemon = fetch_random_pokemon()", "Yes"),
+        ("now >= target_time", "sleep_secs = (target_time - now).total_seconds()", "No"),
+        ("pokemon = fetch_random_pokemon()", "print(pokemon)", None),
+        ("print(pokemon)", "next_run = target_time + timedelta(days=1)", None),
+        ("next_run = target_time + timedelta(days=1)", "sleep_secs = (next_run - now).total_seconds()", None),
+        ("sleep_secs = (next_run - now).total_seconds()", "time.sleep(sleep_secs)", None),
+        ("sleep_secs = (target_time - now).total_seconds()", "time.sleep(sleep_secs)", None),
+    ])
+    assert expected_edges == actual_edges
 
 def test_export_from_code_condition_node_yes_only():
     code = '''
