@@ -372,15 +372,31 @@ class FunctionDefArgsInput(AstNode, InputOutputNode):
         """Extract structured parameter data for React Flow node."""
         assert isinstance(self.ast_object, _ast.FunctionDef) or \
                hasattr(self.ast_object, "args")
-        
+
         params = []
-        for arg in self.ast_object.args.args:
+        args_list = self.ast_object.args.args
+        defaults_list = self.ast_object.args.defaults
+
+        # Calculate the offset: defaults apply to the last N arguments
+        num_args = len(args_list)
+        num_defaults = len(defaults_list)
+        defaults_offset = num_args - num_defaults
+
+        for i, arg in enumerate(args_list):
             param = {
                 'name': str(arg.arg),
                 'type': self._get_arg_type(arg)
             }
+
+            # Add default value if present
+            if i >= defaults_offset:
+                default_index = i - defaults_offset
+                default_value = self._get_default_value(defaults_list[default_index])
+                if default_value is not None:
+                    param['default'] = default_value
+
             params.append(param)
-        
+
         return params
     
     def _get_arg_type(self, arg):
@@ -391,6 +407,30 @@ class FunctionDefArgsInput(AstNode, InputOutputNode):
             except:
                 return 'any'
         return 'any'
+
+    def _get_default_value(self, default_node):
+        """Extract default value from AST node."""
+        if default_node is None:
+            return None
+
+        try:
+            # Use astunparse to convert the default value AST node to string
+            return astunparse.unparse(default_node).strip()
+        except:
+            # Fallback to basic types if astunparse fails
+            try:
+                if isinstance(default_node, _ast.Constant):
+                    return default_node.value
+                elif isinstance(default_node, _ast.Num):  # For older Python versions
+                    return default_node.n
+                elif isinstance(default_node, _ast.Str):  # For older Python versions
+                    return default_node.s
+                elif isinstance(default_node, _ast.NameConstant):  # For older Python versions
+                    return default_node.value
+            except:
+                pass
+
+        return None
 
 
 class FunctionDef(NodesGroup, AstNode):
