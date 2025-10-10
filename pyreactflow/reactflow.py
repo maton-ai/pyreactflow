@@ -146,35 +146,153 @@ class ReactFlow(NodesGroup):
     def _is_child_of_parent(self, target_node, parent_node):
         """Check if a target node is a child of a parent node (condition or loop)."""
         try:
+            # For loop nodes: Check if target is in the loop body
+            # Key distinction: loop body nodes should connect BACK to the loop condition
+            # Nodes that continue after the loop should NOT be considered children
+            if isinstance(parent_node, LoopCondition):
+                if hasattr(parent_node, 'connection_yes') and parent_node.connection_yes:
+                    loop_body = parent_node.connection_yes.next_node
+                    # Check if target is in the loop body AND connects back to the loop
+                    if self._contains_node_in_loop_body(loop_body, target_node, parent_node, set()):
+                        return True
+                return False
+
             # For condition nodes: Check yes and no branches
             if hasattr(parent_node, 'connection_yes') and parent_node.connection_yes:
                 yes_next = parent_node.connection_yes.next_node
                 if self._contains_node(yes_next, target_node, set()):
                     return True
-            
+
             # For non-loop conditions: Check the no branch for containment
-            # For loops: Don't check connection_no as it points to continuation after loop, not containment
-            if hasattr(parent_node, 'connection_no') and parent_node.connection_no and not isinstance(parent_node, LoopCondition):
+            if hasattr(parent_node, 'connection_no') and parent_node.connection_no:
                 no_next = parent_node.connection_no.next_node
                 if self._contains_node(no_next, target_node, set()):
                     return True
-                    
-            # For loop nodes: Check if target is in the loop body
-            if isinstance(parent_node, LoopCondition):
-                if hasattr(parent_node, 'connection_yes') and parent_node.connection_yes:
-                    loop_body = parent_node.connection_yes.next_node
-                    if self._contains_node(loop_body, target_node, set()):
-                        return True
-                    
-                    # Additional check: If target is not directly contained, check if any conditions 
-                    # in the loop body contain the target
-                    if self._check_nested_condition_containment(loop_body, target_node):
-                        return True
         except (AttributeError, TypeError):
             pass
         return False
     
     
+    def _contains_node_in_loop_body(self, loop_body, target_node, loop_condition, visited=None):
+        """Check if target_node is in the loop body using both AST and graph traversal."""
+        if visited is None:
+            visited = set()
+
+        if not loop_body or id(loop_body) in visited:
+            return False
+
+        visited.add(id(loop_body))
+
+        # Try AST-based approach first (most reliable)
+        if hasattr(loop_condition, 'ast_object') and hasattr(target_node, 'ast_object'):
+            if self._is_node_in_loop_ast_body(loop_condition.ast_object, target_node.ast_object):
+                return True
+
+        # Direct match
+        if loop_body == target_node:
+            return True
+
+        # For wrapper nodes (CondYN), check their sub
+        if hasattr(loop_body, 'sub') and loop_body.sub:
+            if loop_body.sub == target_node:
+                return True
+            # Continue checking in sub
+            if self._contains_node_in_loop_body(loop_body.sub, target_node, loop_condition, visited):
+                return True
+
+        # For condition nodes inside the loop, check their branches
+        if hasattr(loop_body, 'connection_yes') or hasattr(loop_body, 'connection_no'):
+            if hasattr(loop_body, 'connection_yes') and loop_body.connection_yes:
+                yes_next = loop_body.connection_yes.next_node
+                if self._contains_node_in_loop_body(yes_next, target_node, loop_condition, visited):
+                    return True
+
+            if hasattr(loop_body, 'connection_no') and loop_body.connection_no:
+                no_next = loop_body.connection_no.next_node
+                if self._contains_node_in_loop_body(no_next, target_node, loop_condition, visited):
+                    return True
+
+        # Follow sequential connections within the loop body
+        if hasattr(loop_body, 'connections') and loop_body.connections:
+            for conn in loop_body.connections:
+                if hasattr(conn, 'next_node') and conn.next_node:
+                    next_node = conn.next_node
+                    # Check if this connection goes back to the loop (forms the loop)
+                    if next_node == loop_condition:
+                        # This is the loop-back edge, we don't follow it
+                        continue
+                    # Check if connection goes to loop exit (via connection_no)
+                    if (hasattr(loop_condition, 'connection_no') and
+                        loop_condition.connection_no and
+                        loop_condition.connection_no.next_node == next_node):
+                        # This is a connection to the loop exit, don't follow it
+                        continue
+                    # Check if this connection leads to the target within the loop body
+                    if self._contains_node_in_loop_body(next_node, target_node, loop_condition, visited):
+                        return True
+
+        return False
+
+    def _is_node_in_loop_ast_body(self, loop_ast, node_ast):
+        """Check if a node's AST is contained within a loop's AST body."""
+        if not (hasattr(loop_ast, 'body') and loop_ast.body):
+            return False
+
+        # Check if node_ast is directly in the loop body
+        if node_ast in loop_ast.body:
+            return True
+
+        # Recursively check nested structures
+        for stmt in loop_ast.body:
+            if self._ast_contains(stmt, node_ast):
+                return True
+
+        return False
+
+    def _ast_contains(self, container_ast, target_ast, visited=None):
+        """Check if target_ast is contained anywhere within container_ast."""
+        if visited is None:
+            visited = set()
+
+        if not container_ast or id(container_ast) in visited:
+            return False
+
+        if container_ast == target_ast:
+            return True
+
+        visited.add(id(container_ast))
+
+        # Check common container attributes
+        for attr_name in ['body', 'orelse', 'handlers', 'finalbody']:
+            if hasattr(container_ast, attr_name):
+                attr_value = getattr(container_ast, attr_name)
+                if isinstance(attr_value, list):
+                    for item in attr_value:
+                        if item == target_ast or self._ast_contains(item, target_ast, visited):
+                            return True
+
+        return False
+
+    def _node_connects_to_loop(self, node, loop_condition, visited, max_depth=10):
+        """Check if a node eventually connects back to the loop condition."""
+        if not node or id(node) in visited or max_depth <= 0:
+            return False
+
+        visited.add(id(node))
+
+        # Check all connections from this node
+        if hasattr(node, 'connections') and node.connections:
+            for conn in node.connections:
+                if hasattr(conn, 'next_node') and conn.next_node:
+                    # Direct connection back to loop
+                    if conn.next_node == loop_condition:
+                        return True
+                    # Check if this connection eventually leads back to the loop
+                    if self._node_connects_to_loop(conn.next_node, loop_condition, visited, max_depth - 1):
+                        return True
+
+        return False
+
     def _check_nested_condition_containment(self, loop_body, target_node, visited=None, max_depth=3):
         """Check if target_node is contained within any condition inside the loop body."""
         if visited is None:
