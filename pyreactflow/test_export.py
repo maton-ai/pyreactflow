@@ -1204,5 +1204,87 @@ def main(email: str, phone_number: str) -> list[str]:
     assert 'vars' in loop_node['data']
     assert 'customer_id' in loop_node['data']['vars']
 
+def test_export_from_code_for_loop_with_sequential_after():
+    """Test that nodes after a for loop are not marked as children of the loop."""
+    code = '''
+@flow
+def main() -> None:
+    res = get_messages()
+    details = []
+    for m in res.messages:
+        details.append(get_message(m.id))
+    summary = summarize_messages(details)
+    subject = build_subject()
+    email = build_email(subject, summary)
+    send_message(email)
+    '''
+    flow = ReactFlow.from_code(code, field="main", simplify=False, inner=False)
+    result = flow.export()
+
+    # Expected nodes (type, label)
+    expected_nodes = set([
+        ("start", "input:"),
+        ("operation", "res = get_messages()"),
+        ("operation", "details = []"),
+        ("loop", "for m in res.messages"),
+        ("subroutine", "details.append(get_message(m.id))"),
+        ("operation", "summary = summarize_messages(details)"),
+        ("operation", "subject = build_subject()"),
+        ("operation", "email = build_email(subject, summary)"),
+        ("subroutine", "send_message(email)"),
+    ])
+    actual_nodes = set((n['type'], n['data']['label']) for n in result['nodes'])
+    assert expected_nodes == actual_nodes
+
+    # Expected parent relationships - only the append statement should be a child of the loop
+    expected_parents = {
+        "input:": None,
+        "res = get_messages()": None,
+        "details = []": None,
+        "for m in res.messages": None,
+        "details.append(get_message(m.id))": "for m in res.messages",  # Only this is a child
+        "summary = summarize_messages(details)": None,  # Not a child
+        "subject = build_subject()": None,  # Not a child
+        "email = build_email(subject, summary)": None,  # Not a child
+        "send_message(email)": None,  # Not a child
+    }
+
+    # Build label to nodes mapping
+    label_to_nodes = {}
+    for n in result['nodes']:
+        label_to_nodes.setdefault(n['data']['label'], []).append(n)
+
+    # Check parent relationships
+    for label, parent_label in expected_parents.items():
+        for node in label_to_nodes.get(label, []):
+            if parent_label is None:
+                assert 'parentId' not in node, f"Node '{label}' should not have parent but has {node.get('parentId')}"
+            else:
+                # Find the expected parent node id by label
+                parent_nodes = label_to_nodes.get(parent_label, [])
+                assert parent_nodes, f"Expected parent node with label '{parent_label}' not found"
+                parent_ids = {pn['id'] for pn in parent_nodes}
+                assert node.get('parentId') in parent_ids, f"Node '{label}' should have parentId in {parent_ids}, got {node.get('parentId')}"
+
+    # Expected edges (source_label, target_label, edge_label)
+    label_map = {n['id']: n['data']['label'] for n in result['nodes']}
+    def edge_tuple(e):
+        return (
+            label_map.get(e['source'], e['source']),
+            label_map.get(e['target'], e['target']),
+            e.get('label', None)
+        )
+    actual_edges = set(edge_tuple(e) for e in result['edges'])
+    expected_edges = set([
+        ("input:", "res = get_messages()", None),
+        ("res = get_messages()", "details = []", None),
+        ("details = []", "for m in res.messages", None),
+        ("for m in res.messages", "summary = summarize_messages(details)", None),
+        ("summary = summarize_messages(details)", "subject = build_subject()", None),
+        ("subject = build_subject()", "email = build_email(subject, summary)", None),
+        ("email = build_email(subject, summary)", "send_message(email)", None),
+    ])
+    assert expected_edges == actual_edges
+
 if __name__ == "__main__":
     pytest.main([__file__])
