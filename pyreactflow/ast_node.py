@@ -205,7 +205,8 @@ class AstNode(Node):
         if isinstance(arg_node, _ast.Name):
             return {
                 'name': arg_node.id,
-                'type': 'variable'
+                'type': 'variable',
+                'value': arg_node.id
             }
         elif isinstance(arg_node, _ast.Constant):
             # Handle constants (strings, numbers, etc.)
@@ -220,23 +221,39 @@ class AstNode(Node):
                 arg_type = 'constant'
             return {
                 'name': repr(value),
-                'type': arg_type
+                'type': arg_type,
+                'value': repr(value)
             }
         elif isinstance(arg_node, _ast.List):
+            try:
+                list_value = astunparse.unparse(arg_node).strip()
+            except:
+                list_value = 'list'
             return {
                 'name': 'list',
-                'type': 'list'
+                'type': 'list',
+                'value': list_value
             }
         elif isinstance(arg_node, _ast.Dict):
+            try:
+                dict_value = astunparse.unparse(arg_node).strip()
+            except:
+                dict_value = 'dict'
             return {
                 'name': 'dict',
-                'type': 'dict'
+                'type': 'dict',
+                'value': dict_value
             }
         elif isinstance(arg_node, _ast.Call):
             # Nested function call
+            try:
+                call_value = astunparse.unparse(arg_node).strip()
+            except:
+                call_value = 'function_call'
             return {
                 'name': 'function_call',
-                'type': 'call'
+                'type': 'call',
+                'value': call_value
             }
         elif isinstance(arg_node, _ast.Attribute):
             # Attribute access like obj.attr
@@ -244,12 +261,14 @@ class AstNode(Node):
                 attr_name = astunparse.unparse(arg_node).strip()
                 return {
                     'name': attr_name,
-                    'type': 'attribute'
+                    'type': 'attribute',
+                    'value': attr_name
                 }
             except:
                 return {
                     'name': 'attribute',
-                    'type': 'attribute'
+                    'type': 'attribute',
+                    'value': 'attribute'
                 }
         else:
             # For other types, try to get a string representation
@@ -257,12 +276,14 @@ class AstNode(Node):
                 name = astunparse.unparse(arg_node).strip()
                 return {
                     'name': name,
-                    'type': 'expression'
+                    'type': 'expression',
+                    'value': name
                 }
             except:
                 return {
                     'name': 'unknown',
-                    'type': 'unknown'
+                    'type': 'unknown',
+                    'value': 'unknown'
                 }
 
 
