@@ -1286,5 +1286,96 @@ def main() -> None:
     ])
     assert expected_edges == actual_edges
 
+def test_export_from_code_bare_return_in_condition():
+    """Test that bare return statement in if condition generates proper end node and edges."""
+    code = '''
+@flow
+def main() -> None:
+    emails = fetch_last_24h_emails("me")
+    if emails.count == 0:
+        return
+    summary = summarize_emails(emails.text)
+    raw = build_raw_email("user@example.com", "Daily Email Summary (Last 24h)", summary.summary, "recipient@example.com")
+    tasks.google_mail.send_message(userId="me", body={"raw": raw.raw})
+    '''
+    flow = ReactFlow.from_code(code, field="main", simplify=False, inner=False)
+    result = flow.export()
+
+    # Expected nodes (type, label)
+    expected_nodes = set([
+        ("start", "input:"),
+        ("operation", "emails = fetch_last_24h_emails('me')"),
+        ("condition", "emails.count == 0"),
+        ("end", "end function return"),  # The bare return creates an end node
+        ("operation", "summary = summarize_emails(emails.text)"),
+        ("operation", "raw = build_raw_email('user@example.com', 'Daily Email Summary (Last 24h)', summary.summary, 'recipient@example.com')"),
+        ("subroutine", "tasks.google_mail.send_message(userId='me', body={'raw': raw.raw})"),
+    ])
+    actual_nodes = set((n['type'], n['data']['label']) for n in result['nodes'])
+    assert expected_nodes == actual_nodes
+
+    # Expected parent relationships (all should be top-level)
+    for node in result['nodes']:
+        assert 'parentId' not in node, f"Node '{node['data']['label']}' should not have parent but has {node.get('parentId')}"
+
+    # Expected edges (source_label, target_label, edge_label)
+    label_map = {n['id']: n['data']['label'] for n in result['nodes']}
+    def edge_tuple(e):
+        return (
+            label_map.get(e['source'], e['source']),
+            label_map.get(e['target'], e['target']),
+            e.get('label', None)
+        )
+    actual_edges = set(edge_tuple(e) for e in result['edges'])
+    expected_edges = set([
+        ("input:", "emails = fetch_last_24h_emails('me')", None),
+        ("emails = fetch_last_24h_emails('me')", "emails.count == 0", None),
+        ("emails.count == 0", "end function return", "Yes"),  # Yes branch goes to return
+        ("emails.count == 0", "summary = summarize_emails(emails.text)", "No"),  # No branch continues
+        ("summary = summarize_emails(emails.text)", "raw = build_raw_email('user@example.com', 'Daily Email Summary (Last 24h)', summary.summary, 'recipient@example.com')", None),
+        ("raw = build_raw_email('user@example.com', 'Daily Email Summary (Last 24h)', summary.summary, 'recipient@example.com')", "tasks.google_mail.send_message(userId='me', body={'raw': raw.raw})", None),
+    ])
+    assert expected_edges == actual_edges
+
+    # Verify the tasks data structure for the operations
+    operation_nodes = [n for n in result['nodes'] if n['type'] == 'operation']
+
+    # Check fetch_last_24h_emails task
+    fetch_node = next((n for n in operation_nodes
+                      if n['data']['label'] == "emails = fetch_last_24h_emails('me')"), None)
+    assert fetch_node is not None
+    assert 'tasks' in fetch_node['data']
+    assert len(fetch_node['data']['tasks']) == 1
+    assert fetch_node['data']['tasks'][0]['name'] == 'fetch_last_24h_emails'
+    assert fetch_node['data']['tasks'][0]['args'][0]['value'] == "'me'"
+
+    # Check summarize_emails task
+    summarize_node = next((n for n in operation_nodes
+                          if n['data']['label'] == "summary = summarize_emails(emails.text)"), None)
+    assert summarize_node is not None
+    assert 'tasks' in summarize_node['data']
+    assert len(summarize_node['data']['tasks']) == 1
+    assert summarize_node['data']['tasks'][0]['name'] == 'summarize_emails'
+    assert summarize_node['data']['tasks'][0]['args'][0]['type'] == 'attribute'
+
+    # Check build_raw_email task
+    build_node = next((n for n in operation_nodes
+                      if 'build_raw_email' in n['data']['label']), None)
+    assert build_node is not None
+    assert 'tasks' in build_node['data']
+    assert len(build_node['data']['tasks']) == 1
+    assert build_node['data']['tasks'][0]['name'] == 'build_raw_email'
+    assert len(build_node['data']['tasks'][0]['args']) == 4
+
+    # Check subroutine node
+    subroutine_nodes = [n for n in result['nodes'] if n['type'] == 'subroutine']
+    send_node = next((n for n in subroutine_nodes
+                     if 'send_message' in n['data']['label']), None)
+    assert send_node is not None
+    assert 'tasks' in send_node['data']
+    assert send_node['data']['tasks'][0]['name'] == 'send_message'
+    assert any(arg['name'] == 'userId' for arg in send_node['data']['tasks'][0]['args'])
+    assert any(arg['name'] == 'body' for arg in send_node['data']['tasks'][0]['args'])
+
 if __name__ == "__main__":
     pytest.main([__file__])
