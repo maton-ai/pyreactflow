@@ -1043,7 +1043,7 @@ class ReactFlow(NodesGroup):
 
     def export(self):
         """Export as react-flow compatible dict with proper depth > 1 violation handling.
-        
+
         Key principles:
         1. Only top-level loops (depth=0) can have children via parentId
         2. Child loops that would create depth > 1 violations get merged with their body
@@ -1053,28 +1053,49 @@ class ReactFlow(NodesGroup):
         all_nodes = []
         all_edges = []
         visited = set()
-        
+        return_end_nodes = {}  # Track ReturnEnd nodes and their connecting ReturnOutput nodes
+
         # Step 1: Collect all nodes and edges
         def collect_nodes_and_edges(node):
             if id(node) in visited or not hasattr(node, 'node_name') or not node.node_name:
                 return True
             visited.add(id(node))
-            
+
             react_node = node.to_react_flow_node()
             if react_node and not self._is_function_wrapper_node(node):
                 all_nodes.append((node, react_node))
                 edges = node.to_react_flow_edges()
                 all_edges.extend(edges)
+
+                # Track ReturnOutput -> ReturnEnd connections
+                from pyreactflow.ast_node import ReturnOutput, ReturnEnd
+                if isinstance(node, ReturnOutput):
+                    # Find which ReturnEnd this output connects to
+                    for conn in node.connections:
+                        if hasattr(conn, 'next_node') and isinstance(conn.next_node, ReturnEnd):
+                            return_end_nodes[id(conn.next_node)] = node
+
             return True
-        
+
         if self.head:
             self._traverse(collect_nodes_and_edges, f'export-{id(self)}')
-        
+
+        # Step 1.5: Filter out ReturnEnd nodes that have a paired ReturnOutput
+        # (bare return statements should keep their ReturnEnd node)
+        from pyreactflow.ast_node import ReturnEnd
+        filtered_nodes = []
+        for orig_node, react_node in all_nodes:
+            if isinstance(orig_node, ReturnEnd) and id(orig_node) in return_end_nodes:
+                # This ReturnEnd has a paired ReturnOutput, skip it
+                continue
+            filtered_nodes.append((orig_node, react_node))
+        all_nodes = filtered_nodes
+
         # Step 2: Identify depth violations and necessary merging
         top_level_loops = []
         loops_to_merge = {}  # loop -> body_node
         nodes_to_remove = set()  # body nodes that get merged
-        
+
         self._identify_depth_violations(all_nodes, top_level_loops, loops_to_merge, nodes_to_remove)
         
         # Step 3: Process nodes
@@ -1116,20 +1137,19 @@ class ReactFlow(NodesGroup):
     def _is_function_wrapper_node(self, node):
         """Check if node is a function definition wrapper node that should be excluded from export."""
         # Import here to avoid circular imports
-        from pyreactflow.ast_node import FunctionDefStart, FunctionDefEnd, ReturnEnd
-        
+        from pyreactflow.ast_node import FunctionDefStart, FunctionDefEnd
+
         # Always exclude FunctionDefStart
         if isinstance(node, FunctionDefStart):
             return True
-            
-        # Always exclude FunctionDefEnd - return statements create their own ReturnOutput nodes
+
+        # Always exclude FunctionDefEnd - return statements create their own ReturnOutput/ReturnEnd nodes
         if isinstance(node, FunctionDefEnd):
             return True
-            
-        # Always exclude ReturnEnd - return statements create their own ReturnOutput nodes
-        if isinstance(node, ReturnEnd):
-            return True
-            
+
+        # Note: ReturnEnd nodes should NOT be excluded - they represent actual return statements
+        # in the code flow and should be visible in the flowchart
+
         return False
     
     def _identify_depth_violations(self, all_nodes, top_level_loops, loops_to_merge, nodes_to_remove):
