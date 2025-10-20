@@ -1377,5 +1377,92 @@ def main() -> None:
     assert any(arg['name'] == 'userId' for arg in send_node['data']['tasks'][0]['args'])
     assert any(arg['name'] == 'body' for arg in send_node['data']['tasks'][0]['args'])
 
+def test_export_from_code_condition_after_loop_bug():
+    """Test that condition after for loop is not marked as child of loop (bug fix)."""
+    code = '''
+def main(event) -> None:
+    msgs = list_messages(userId="me", q="newer_than:1d", maxResults=100)
+    for m in msgs.messages:
+        gm = get_message(userId="me", id=m.id)
+        if gm.snippet:
+            corpus = corpus + "- " + gm.snippet
+    ai = create_chat_completion(model="gpt-4.1-mini", messages=[{"role": "system", "content": "Write a summary"}, {"role": "user", "content": corpus}], temperature=0.2)
+    if msgs.resultSizeEstimate > 5:
+        send_message(userId="me", body={"raw": ai.choices[0].message.content})
+    '''
+    flow = ReactFlow.from_code(code, field="main", simplify=False, inner=False)
+    result = flow.export()
+
+    # Expected nodes (type, label)
+    expected_nodes = set([
+        ("start", "input: event"),
+        ("operation", "msgs = list_messages(userId='me', q='newer_than:1d', maxResults=100)"),
+        ("loop", "for m in msgs.messages"),
+        ("operation", "gm = get_message(userId='me', id=m.id)"),
+        ("condition", "gm.snippet"),
+        ("operation", "corpus = corpus + '- ' + gm.snippet"),
+        ("operation", "ai = create_chat_completion(model='gpt-4.1-mini', messages=[{'role': 'system', 'content': 'Write a summary'}, {'role': 'user', 'content': corpus}], temperature=0.2)"),
+        ("condition", "msgs.resultSizeEstimate > 5"),
+        ("subroutine", "send_message(userId='me', body={'raw': ai.choices[0].message.content})"),
+    ])
+    actual_nodes = set((n['type'], n['data']['label']) for n in result['nodes'])
+    assert expected_nodes == actual_nodes
+
+    # Critical test: The condition "msgs.resultSizeEstimate > 5" should NOT have the loop as parent
+    # This is the bug we're fixing
+    result_size_condition = next((n for n in result['nodes']
+                                 if n['data']['label'] == "msgs.resultSizeEstimate > 5"), None)
+    assert result_size_condition is not None, "Could not find msgs.resultSizeEstimate > 5 condition"
+    assert 'parentId' not in result_size_condition, f"Condition 'msgs.resultSizeEstimate > 5' should not have a parent, but has parentId: {result_size_condition.get('parentId')}"
+
+    # Expected parent relationships (label -> parent_label or None)
+    expected_parents = {
+        "input: event": None,
+        "msgs = list_messages(userId='me', q='newer_than:1d', maxResults=100)": None,
+        "for m in msgs.messages": None,
+        "gm = get_message(userId='me', id=m.id)": "for m in msgs.messages",
+        "gm.snippet": "for m in msgs.messages",
+        "corpus = corpus + '- ' + gm.snippet": "for m in msgs.messages",
+        "ai = create_chat_completion(model='gpt-4.1-mini', messages=[{'role': 'system', 'content': 'Write a summary'}, {'role': 'user', 'content': corpus}], temperature=0.2)": None,
+        "msgs.resultSizeEstimate > 5": None,  # This is the key test - should be None, not the loop
+        "send_message(userId='me', body={'raw': ai.choices[0].message.content})": None,
+    }
+
+    # Build label to nodes mapping and check parent relationships
+    label_to_nodes = {}
+    for n in result['nodes']:
+        label_to_nodes.setdefault(n['data']['label'], []).append(n)
+
+    # Create mapping from label to parent label
+    label_to_parent = {}
+    node_map = {n['id']: n for n in result['nodes']}
+    for node in result['nodes']:
+        label = node['data']['label']
+        parent_id = node.get('parentId')
+        parent_label = node_map[parent_id]['data']['label'] if parent_id else None
+        label_to_parent[label] = parent_label
+
+    assert expected_parents == label_to_parent, f"Parent relationships don't match. Expected: {expected_parents}, Got: {label_to_parent}"
+
+    # Expected edges (source_label, target_label, edge_label)
+    label_map = {n['id']: n['data']['label'] for n in result['nodes']}
+    def edge_tuple(e):
+        return (
+            label_map.get(e['source'], e['source']),
+            label_map.get(e['target'], e['target']),
+            e.get('label', None)
+        )
+    actual_edges = set(edge_tuple(e) for e in result['edges'])
+    expected_edges = set([
+        ("input: event", "msgs = list_messages(userId='me', q='newer_than:1d', maxResults=100)", None),
+        ("msgs = list_messages(userId='me', q='newer_than:1d', maxResults=100)", "for m in msgs.messages", None),
+        ("for m in msgs.messages", "ai = create_chat_completion(model='gpt-4.1-mini', messages=[{'role': 'system', 'content': 'Write a summary'}, {'role': 'user', 'content': corpus}], temperature=0.2)", None),
+        ("gm = get_message(userId='me', id=m.id)", "gm.snippet", None),
+        ("gm.snippet", "corpus = corpus + '- ' + gm.snippet", "Yes"),
+        ("ai = create_chat_completion(model='gpt-4.1-mini', messages=[{'role': 'system', 'content': 'Write a summary'}, {'role': 'user', 'content': corpus}], temperature=0.2)", "msgs.resultSizeEstimate > 5", None),
+        ("msgs.resultSizeEstimate > 5", "send_message(userId='me', body={'raw': ai.choices[0].message.content})", "Yes"),
+    ])
+    assert expected_edges == actual_edges
+
 if __name__ == "__main__":
     pytest.main([__file__])
