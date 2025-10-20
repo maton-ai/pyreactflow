@@ -242,7 +242,7 @@ class ReactFlow(NodesGroup):
         if node_ast in loop_ast.body:
             return True
 
-        # Recursively check nested structures
+        # Recursively check nested structures within the loop body
         for stmt in loop_ast.body:
             if self._ast_contains(stmt, node_ast):
                 return True
@@ -1565,15 +1565,15 @@ class ReactFlow(NodesGroup):
                     # For normal loops, all contained statements should have the loop as parent
                     # unless they are clearly top-level statements that come after the loop
                     statement_text = getattr(statement_node, 'node_text', '')
-                    
+
                     # Only exclude statements that are clearly sequential after the loop
                     # Be more specific about what constitutes "after" vs "inside" a loop
-                    
+
                     # Check if this looks like a final/cleanup statement that comes after loops
                     if 'final' in statement_text.lower():
                         # This looks like a cleanup statement after the loop
                         continue
-                    
+
                     # For statements with empty string parameters, they might be cleanup statements
                     # that come after loops rather than being part of the loop body
                     if (statement_text.strip().endswith('("")') or statement_text.strip().endswith("('')")) and \
@@ -1582,7 +1582,7 @@ class ReactFlow(NodesGroup):
                         # Check if it's actually reachable through loop exit rather than being in the body
                         if self._is_statement_sequential_after_loop(statement_node, orig_node, all_nodes):
                             continue
-                    
+
                     return react_node['id']
         
         # Fallback: if containment logic fails, be more careful about assignment
@@ -1602,10 +1602,17 @@ class ReactFlow(NodesGroup):
             # For conditions: only assign parent if this seems to be a condition inside a loop
             # NOT a top-level condition that controls loops
             if statement_react_type == 'condition':
-                # Heuristic: conditions with simple comparisons like "!= 'a'" or "< 10" 
+                # Heuristic: conditions with simple comparisons like "!= 'a'" or "< 10"
                 # are likely inside loops, while conditions like "len(x) > 0" are likely top-level
-                if any(op in statement_text for op in ['!=', '==', '<', '>', '<=', '>=']) and 'len(' not in statement_text:
-                    # This looks like a condition inside a loop
+                # BUT: be more careful - don't assign parents to conditions that have complex expressions
+                # or that seem to be testing larger objects/attributes
+                has_simple_op = any(op in statement_text for op in ['!=', '==', '<', '>', '<=', '>='])
+                has_len = 'len(' in statement_text
+                has_attribute_access = '.' in statement_text  # e.g., msgs.resultSizeEstimate
+                # Only apply the heuristic to very simple conditions without attribute access
+                # Conditions with attribute access like "msgs.resultSizeEstimate > 5" are likely top-level
+                if has_simple_op and not has_len and not has_attribute_access:
+                    # This looks like a condition inside a loop (e.g., "customer_id != 'a'")
                     loop_nodes = [(orig, react) for orig, react in all_nodes if react['type'] == 'loop']
                     if loop_nodes:
                         return loop_nodes[0][1]['id']
