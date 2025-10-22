@@ -1464,5 +1464,95 @@ def main(event) -> None:
     ])
     assert expected_edges == actual_edges
 
+def test_export_from_code_condition_before_loop_bug():
+    """Test that condition before for loop is not marked as child of loop (bug fix)."""
+    code = '''
+def main(event) -> None:
+    lm = list_messages(userId="me", maxResults=100)
+    count = len(lm.messages)
+    if count < 5:
+        raw = "raw"
+        send_message(userId="me", body={"raw": raw})
+        print(count, "email")
+        return
+    for m in lm.messages:
+        gm = get_message(userId="me", id=m.id)
+    comp = create_chat_completion(model="gpt-4.1-mini")
+    '''
+    flow = ReactFlow.from_code(code, field="main", simplify=False, inner=False)
+    result = flow.export()
+
+    # Expected nodes (type, label)
+    expected_nodes = set([
+        ("start", "input: event"),
+        ("operation", "lm = list_messages(userId='me', maxResults=100)"),
+        ("operation", "count = len(lm.messages)"),
+        ("condition", "count < 5"),
+        ("operation", "raw = 'raw'"),
+        ("subroutine", "send_message(userId='me', body={'raw': raw})"),
+        ("subroutine", "print(count, 'email')"),
+        ("end", "end function return"),
+        ("loop", "for m in lm.messages"),
+        ("operation", "gm = get_message(userId='me', id=m.id)"),
+        ("operation", "comp = create_chat_completion(model='gpt-4.1-mini')"),
+    ])
+    actual_nodes = set((n['type'], n['data']['label']) for n in result['nodes'])
+    assert expected_nodes == actual_nodes
+
+    # Expected parent relationships (label -> parent_label or None)
+    # CRITICAL: The condition "count < 5" comes BEFORE the loop, so it should NOT have the loop as parent
+    expected_parents = {
+        "input: event": None,
+        "lm = list_messages(userId='me', maxResults=100)": None,
+        "count = len(lm.messages)": None,
+        "count < 5": None,  # This is the key fix - should NOT have loop as parent
+        "raw = 'raw'": None,
+        "send_message(userId='me', body={'raw': raw})": None,
+        "print(count, 'email')": None,
+        "end function return": None,
+        "for m in lm.messages": None,
+        "gm = get_message(userId='me', id=m.id)": "for m in lm.messages",
+        "comp = create_chat_completion(model='gpt-4.1-mini')": None,
+    }
+
+    # Build label to nodes mapping
+    label_to_nodes = {}
+    for n in result['nodes']:
+        label_to_nodes.setdefault(n['data']['label'], []).append(n)
+
+    # Check parent relationships
+    for label, parent_label in expected_parents.items():
+        for node in label_to_nodes.get(label, []):
+            if parent_label is None:
+                assert 'parentId' not in node, f"Node '{label}' should not have parent but has {node.get('parentId')}"
+            else:
+                # Find the expected parent node id by label
+                parent_nodes = label_to_nodes.get(parent_label, [])
+                assert parent_nodes, f"Expected parent node with label '{parent_label}' not found"
+                parent_ids = {pn['id'] for pn in parent_nodes}
+                assert node.get('parentId') in parent_ids, f"Node '{label}' should have parentId in {parent_ids}, got {node.get('parentId')}"
+
+    # Expected edges (source_label, target_label, edge_label)
+    label_map = {n['id']: n['data']['label'] for n in result['nodes']}
+    def edge_tuple(e):
+        return (
+            label_map.get(e['source'], e['source']),
+            label_map.get(e['target'], e['target']),
+            e.get('label', None)
+        )
+    actual_edges = set(edge_tuple(e) for e in result['edges'])
+    expected_edges = set([
+        ("input: event", "lm = list_messages(userId='me', maxResults=100)", None),
+        ("lm = list_messages(userId='me', maxResults=100)", "count = len(lm.messages)", None),
+        ("count = len(lm.messages)", "count < 5", None),
+        ("count < 5", "raw = 'raw'", "Yes"),
+        ("raw = 'raw'", "send_message(userId='me', body={'raw': raw})", None),
+        ("send_message(userId='me', body={'raw': raw})", "print(count, 'email')", None),
+        ("print(count, 'email')", "end function return", None),
+        ("count < 5", "for m in lm.messages", "No"),
+        ("for m in lm.messages", "comp = create_chat_completion(model='gpt-4.1-mini')", None),
+    ])
+    assert expected_edges == actual_edges
+
 if __name__ == "__main__":
     pytest.main([__file__])

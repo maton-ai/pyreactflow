@@ -184,10 +184,13 @@ class ReactFlow(NodesGroup):
         visited.add(id(loop_body))
 
         # Try AST-based approach first (most reliable)
+        # If both nodes have AST objects, use AST-based check as the source of truth
         if hasattr(loop_condition, 'ast_object') and hasattr(target_node, 'ast_object'):
-            if self._is_node_in_loop_ast_body(loop_condition.ast_object, target_node.ast_object):
-                return True
+            # AST-based check is definitive - if the target is in the loop's AST body, it's a child
+            # If not, it's NOT a child, regardless of graph connections
+            return self._is_node_in_loop_ast_body(loop_condition.ast_object, target_node.ast_object)
 
+        # Only use graph-based checks if AST objects are not available
         # Direct match
         if loop_body == target_node:
             return True
@@ -1602,21 +1605,10 @@ class ReactFlow(NodesGroup):
             # For conditions: only assign parent if this seems to be a condition inside a loop
             # NOT a top-level condition that controls loops
             if statement_react_type == 'condition':
-                # Heuristic: conditions with simple comparisons like "!= 'a'" or "< 10"
-                # are likely inside loops, while conditions like "len(x) > 0" are likely top-level
-                # BUT: be more careful - don't assign parents to conditions that have complex expressions
-                # or that seem to be testing larger objects/attributes
-                has_simple_op = any(op in statement_text for op in ['!=', '==', '<', '>', '<=', '>='])
-                has_len = 'len(' in statement_text
-                has_attribute_access = '.' in statement_text  # e.g., msgs.resultSizeEstimate
-                # Only apply the heuristic to very simple conditions without attribute access
-                # Conditions with attribute access like "msgs.resultSizeEstimate > 5" are likely top-level
-                if has_simple_op and not has_len and not has_attribute_access:
-                    # This looks like a condition inside a loop (e.g., "customer_id != 'a'")
-                    loop_nodes = [(orig, react) for orig, react in all_nodes if react['type'] == 'loop']
-                    if loop_nodes:
-                        return loop_nodes[0][1]['id']
-                # Otherwise, assume it's a top-level condition
+                # If we reached this fallback, it means the AST/graph-based containment check
+                # in the "Normal scenario" above already determined this condition is NOT inside any loop.
+                # We should trust that result and NOT use text-based heuristics that can be wrong.
+                # Conditions that are truly inside loops would have been caught by the containment check.
                 return None
             
             # For subroutines: assign parent unless it's clearly a top-level statement
