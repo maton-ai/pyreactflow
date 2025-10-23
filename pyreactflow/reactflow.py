@@ -145,6 +145,9 @@ class ReactFlow(NodesGroup):
 
     def _is_child_of_parent(self, target_node, parent_node):
         """Check if a target node is a child of a parent node (condition or loop)."""
+        # Prevent self-parenting using object identity
+        if target_node is parent_node or id(target_node) == id(parent_node):
+            return False
         try:
             # For loop nodes: Check if target is in the loop body
             # Key distinction: loop body nodes should connect BACK to the loop condition
@@ -1443,9 +1446,10 @@ class ReactFlow(NodesGroup):
                         react_node['parentId'] = outermost_loop[1]['id']
                         react_node['extent'] = 'parent'
             else:
-                # Normal scenario
-                parent_id = self._find_safe_parent(original_node, all_nodes)
-                if parent_id:
+                # Normal scenario - use _find_statement_parent for better nested loop handling
+                parent_id = self._find_statement_parent(original_node, all_nodes)
+                # Prevent self-parenting: don't assign if parent_id matches current node's id
+                if parent_id and parent_id != react_node['id']:
                     react_node['parentId'] = parent_id
                     react_node['extent'] = 'parent'
             
@@ -1562,8 +1566,12 @@ class ReactFlow(NodesGroup):
 
         # Normal scenario: find immediate parent, but ONLY consider loop nodes as parents
         # Condition nodes should never be parents - they use edges for connections
+        statement_node_name = getattr(statement_node, 'node_name', None)
         for orig_node, react_node in all_nodes:
             if react_node['type'] == 'loop':  # Only loops can be parents, not conditions
+                # Prevent self-parenting by checking node names
+                if statement_node_name and react_node['id'] == statement_node_name:
+                    continue
                 if self._is_child_of_parent(statement_node, orig_node):
                     # For normal loops, all contained statements should have the loop as parent
                     # unless they are clearly top-level statements that come after the loop

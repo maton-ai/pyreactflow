@@ -1554,5 +1554,89 @@ def main(event) -> None:
     ])
     assert expected_edges == actual_edges
 
+def test_export_from_code_nested_loop_inside_condition():
+    """Test nested loop inside a condition inside an outer loop - ensures correct parentId assignment."""
+    code = '''
+@flow
+def main() -> list[str]:
+    results = []
+    for item in items:
+        process_item(item)
+        if item.has_children:
+            for child in item.children:
+                process_child(child)
+        finalize_item(item)
+    return results
+    '''
+    flow = ReactFlow.from_code(code, field="main", simplify=False, inner=False)
+    result = flow.export()
+
+    # Expected nodes (type, label)
+    expected_nodes = set([
+        ("start", "input:"),
+        ("operation", "results = []"),
+        ("loop", "for item in items"),
+        ("subroutine", "process_item(item)"),
+        ("condition", "item.has_children"),
+        ("loop", "for child in item.children"),
+        ("subroutine", "process_child(child)"),
+        ("subroutine", "finalize_item(item)"),
+        ("end", "output:  results"),
+    ])
+    actual_nodes = set((n['type'], n['data']['label']) for n in result['nodes'])
+    assert expected_nodes == actual_nodes
+
+    # Expected parent relationships (label -> parent_label or None)
+    expected_parents = {
+        "input:": None,
+        "results = []": None,
+        "for item in items": None,  # Outer loop should NOT have a parent
+        "process_item(item)": "for item in items",
+        "item.has_children": "for item in items",
+        "for child in item.children": "for item in items",  # Nested loop should have outer loop as parent
+        "process_child(child)": "for item in items",
+        "finalize_item(item)": "for item in items",
+        "output:  results": None,
+    }
+
+    # Build label to nodes mapping
+    label_to_nodes = {}
+    for n in result['nodes']:
+        label_to_nodes.setdefault(n['data']['label'], []).append(n)
+
+    # Check parent relationships
+    for label, parent_label in expected_parents.items():
+        for node in label_to_nodes.get(label, []):
+            if parent_label is None:
+                assert 'parentId' not in node, f"Node '{label}' should not have parent but has {node.get('parentId')}"
+            else:
+                # Find the expected parent node id by label
+                parent_nodes = label_to_nodes.get(parent_label, [])
+                assert parent_nodes, f"Expected parent node with label '{parent_label}' not found"
+                parent_ids = {pn['id'] for pn in parent_nodes}
+                assert node.get('parentId') in parent_ids, f"Node '{label}' should have parentId in {parent_ids}, got {node.get('parentId')}"
+
+    # Expected edges (source_label, target_label, edge_label)
+    label_map = {n['id']: n['data']['label'] for n in result['nodes']}
+    def edge_tuple(e):
+        return (
+            label_map.get(e['source'], e['source']),
+            label_map.get(e['target'], e['target']),
+            e.get('label', None)
+        )
+    actual_edges = set(edge_tuple(e) for e in result['edges'])
+    expected_edges = set([
+        ("input:", "results = []", None),
+        ("results = []", "for item in items", None),
+        ("for item in items", "output:  results", None),
+        ("process_item(item)", "item.has_children", None),
+        ("item.has_children", "for child in item.children", "Yes"),
+        ("item.has_children", "finalize_item(item)", "No"),
+        ("for child in item.children", "process_child(child)", "loop"),  # Loop body entry
+        ("for child in item.children", "finalize_item(item)", None),
+        ("process_child(child)", "for child in item.children", None),  # Loop back
+    ])
+    assert expected_edges == actual_edges
+
 if __name__ == "__main__":
     pytest.main([__file__])
