@@ -121,8 +121,8 @@ def main() -> list[str]:
         ("input:", "customer_ids = get_customer_ids()", None),
         ("customer_ids = get_customer_ids()", "results = []", None),
         ("results = []", "len(customer_ids) > 0", None),
-        ("len(customer_ids) > 0", "print(f'Customers do exist: {len(customer_ids)}')", "Yes"),
-        ("len(customer_ids) > 0", "print('No customers')", "No"),
+        ("len(customer_ids) > 0", "print(f'Customers do exist: {len(customer_ids)}')", "if len(customer_ids) > 0"),
+        ("len(customer_ids) > 0", "print('No customers')", "else"),
         ("print(f'Customers do exist: {len(customer_ids)}')", "output:  results", None),
         ("print('No customers')", "output:  results", None),
     ])
@@ -272,8 +272,8 @@ def main() -> list[str]:
         ("results = []", "len(customer_ids) > 0", None),
         ("customer_ids = get_customer_ids()", "results = []", None),
         ("input:", "customer_ids = get_customer_ids()", None),
-        ("len(customer_ids) > 0", "for customer_id in customer_ids", "Yes"),
-        ("len(customer_ids) > 0", "for customer_id in customer_ids", "No"),
+        ("len(customer_ids) > 0", "for customer_id in customer_ids", "if len(customer_ids) > 0"),
+        ("len(customer_ids) > 0", "for customer_id in customer_ids", "else"),
         ("for customer_id in customer_ids", "output:  results", None),
     ])
     assert expected_edges == actual_edges
@@ -339,8 +339,8 @@ def main() -> list[str]:
         ("results = []", "len(customer_ids) > 0", None),
         ("customer_ids = get_customer_ids()", "results = []", None),
         ("input:", "customer_ids = get_customer_ids()", None),
-        ("len(customer_ids) > 0", "for customer_id in customer_ids", "Yes"),
-        ("len(customer_ids) > 0", "for customer_id in customer_ids", "No"),
+        ("len(customer_ids) > 0", "for customer_id in customer_ids", "if len(customer_ids) > 0"),
+        ("len(customer_ids) > 0", "for customer_id in customer_ids", "else"),
         ("results.append(process_customer(customer_id))", "notify_customer(customer_id)", None),
         ("for customer_id in customer_ids", "output:  results", None),
     ])
@@ -439,8 +439,8 @@ def main() -> None:
         ("input:", "while True", None),
         ("now = datetime.now()", "target_time = now.replace(hour=9, minute=0, second=0, microsecond=0)", None),
         ("target_time = now.replace(hour=9, minute=0, second=0, microsecond=0)", "now >= target_time", None),
-        ("now >= target_time", "pokemon = fetch_random_pokemon()", "Yes"),
-        ("now >= target_time", "sleep_secs = (target_time - now).total_seconds()", "No"),
+        ("now >= target_time", "pokemon = fetch_random_pokemon()", "if now >= target_time"),
+        ("now >= target_time", "sleep_secs = (target_time - now).total_seconds()", "else"),
         ("pokemon = fetch_random_pokemon()", "print(pokemon)", None),
         ("print(pokemon)", "next_run = target_time + timedelta(days=1)", None),
         ("next_run = target_time + timedelta(days=1)", "sleep_secs = (next_run - now).total_seconds()", None),
@@ -538,8 +538,8 @@ def main() -> None:
         ("input:", "while True", None),
         ("now = datetime.now()", "target_time = now.replace(hour=9, minute=0, second=0, microsecond=0)", None),
         ("target_time = now.replace(hour=9, minute=0, second=0, microsecond=0)", "now >= target_time", None),
-        ("now >= target_time", "pokemon = fetch_random_pokemon()", "Yes"),
-        ("now >= target_time", "sleep_secs = (target_time - now).total_seconds()", "No"),
+        ("now >= target_time", "pokemon = fetch_random_pokemon()", "if now >= target_time"),
+        ("now >= target_time", "sleep_secs = (target_time - now).total_seconds()", "else"),
         ("pokemon = fetch_random_pokemon()", "print(pokemon)", None),
         ("print(pokemon)", "next_run = target_time + timedelta(days=1)", None),
         ("next_run = target_time + timedelta(days=1)", "sleep_secs = (next_run - now).total_seconds()", None),
@@ -655,7 +655,7 @@ def main() -> str:
         ("html = fetch_nike_upcoming_drops()", "products = parse_html(html)", None),
         ("products = parse_html(html)", "existing = get_existing_links(spreadsheet_id, 'Sheet1!G2:G')", None),
         ("existing = get_existing_links(spreadsheet_id, 'Sheet1!G2:G')", "for p in products", None),
-        ("p['Link'] not in existing", "enriched = analyze_product(p)", "Yes"),
+        ("p['Link'] not in existing", "enriched = analyze_product(p)", "if p['Link'] not in existing"),
         ("enriched = analyze_product(p)", "row = [enriched['Title'], enriched['Image URL'], enriched['Price'], enriched['Description'], enriched['Hype Level'], enriched['Resale Value'], enriched['Link']]", None),
         ("row = [enriched['Title'], enriched['Image URL'], enriched['Price'], enriched['Description'], enriched['Hype Level'], enriched['Resale Value'], enriched['Link']]", "append_row_to_sheet(spreadsheet_id, 'Sheet1!A2:G2', row)", None),
         ("for p in products", "output:  spreadsheet_id", None),
@@ -738,8 +738,8 @@ def main() -> list[str]:
         ("customer_ids = get_customer_ids()", "results = []", None),
         ("input:", "customer_ids = get_customer_ids()", None),
         ("for customer_id in customer_ids", "for customer_id in customer_ids", None),
-        ("customer_id != 'a'", "results.append(process_customer(customer_id))", "Yes"),
-        ("customer_id != 'a'", "print('do not process customer a')", "No"),
+        ("customer_id != 'a'", "results.append(process_customer(customer_id))", "if customer_id != 'a'"),
+        ("customer_id != 'a'", "print('do not process customer a')", "else"),
         ("for customer_id in customer_ids", "output:  results", None),
     ])
     assert expected_edges == actual_edges
@@ -828,8 +828,8 @@ def main() -> list[str]:
         ("input:", "customer_ids = get_customer_ids()", None),
         ("customer_ids = get_customer_ids()", "results = []", None),
         ("results = []", "len(customer_ids) > 0", None),
-        ("len(customer_ids) > 0", "for customer_id in customer_ids", "Yes"),
-        ("len(customer_ids) > 0", "for customer_id in customer_ids", "No"),
+        ("len(customer_ids) > 0", "for customer_id in customer_ids", "if len(customer_ids) > 0"),
+        ("len(customer_ids) > 0", "for customer_id in customer_ids", "else"),
         ("for customer_id in customer_ids", "notify_customer('')", None),
         ("for customer_id in customer_ids", "results.append('')", None),
         ("notify_customer('')", "results.append('final')", None),
@@ -926,9 +926,9 @@ def main() -> list[str]:
         ("customer_ids = get_customer_ids()", "options = ['a', 'b', 'c']", None),
         ("options = ['a', 'b', 'c']", "results = []", None),
         ("results = []", "for customer_id in customer_ids", None),
-        ("len(customer_ids) > 0", "for option in options \u2192 assign_option_to_customer(option, customer_id)", "Yes"),
+        ("len(customer_ids) > 0", "for option in options \u2192 assign_option_to_customer(option, customer_id)", "if len(customer_ids) > 0"),
         ("for option in options \u2192 assign_option_to_customer(option, customer_id)", "results.append(process_customer(customer_id))", None),
-        ("len(customer_ids) > 0", "print('no need for assigning since there is no customer')", "No"),
+        ("len(customer_ids) > 0", "print('no need for assigning since there is no customer')", "else"),
         ("for customer_id in customer_ids", "output:  results", None),
     ])
     assert expected_edges == actual_edges
@@ -1108,8 +1108,8 @@ def main(email: str, phone_number: str) -> list[str]:
         ("input: email, phone_number", "customer_ids = get_customer_ids()", None),
         ("customer_ids = get_customer_ids()", "results = []", None),
         ("results = []", "len(customer_ids) > 0", None),
-        ("len(customer_ids) > 0", "for customer_id in customer_ids", "Yes"),
-        ("len(customer_ids) > 0", "print('no need for assigning since there is no customer')", "No"),
+        ("len(customer_ids) > 0", "for customer_id in customer_ids", "if len(customer_ids) > 0"),
+        ("len(customer_ids) > 0", "print('no need for assigning since there is no customer')", "else"),
         ("results.append(process_customer(customer_id))", "notify_customer(customer_id)", None),
         ("for customer_id in customer_ids", "output:  results", None),
         ("print('no need for assigning since there is no customer')", "output:  results", None),
@@ -1330,8 +1330,8 @@ def main() -> None:
     expected_edges = set([
         ("input:", "emails = fetch_last_24h_emails('me')", None),
         ("emails = fetch_last_24h_emails('me')", "emails.count == 0", None),
-        ("emails.count == 0", "end function return", "Yes"),  # Yes branch goes to return
-        ("emails.count == 0", "summary = summarize_emails(emails.text)", "No"),  # No branch continues
+        ("emails.count == 0", "end function return", "if emails.count == 0"),  # Yes branch goes to return
+        ("emails.count == 0", "summary = summarize_emails(emails.text)", "else"),  # No branch continues
         ("summary = summarize_emails(emails.text)", "raw = build_raw_email('user@example.com', 'Daily Email Summary (Last 24h)', summary.summary, 'recipient@example.com')", None),
         ("raw = build_raw_email('user@example.com', 'Daily Email Summary (Last 24h)', summary.summary, 'recipient@example.com')", "tasks.google_mail.send_message(userId='me', body={'raw': raw.raw})", None),
     ])
@@ -1458,9 +1458,9 @@ def main(event) -> None:
         ("msgs = list_messages(userId='me', q='newer_than:1d', maxResults=100)", "for m in msgs.messages", None),
         ("for m in msgs.messages", "ai = create_chat_completion(model='gpt-4.1-mini', messages=[{'role': 'system', 'content': 'Write a summary'}, {'role': 'user', 'content': corpus}], temperature=0.2)", None),
         ("gm = get_message(userId='me', id=m.id)", "gm.snippet", None),
-        ("gm.snippet", "corpus = corpus + '- ' + gm.snippet", "Yes"),
+        ("gm.snippet", "corpus = corpus + '- ' + gm.snippet", "if gm.snippet"),
         ("ai = create_chat_completion(model='gpt-4.1-mini', messages=[{'role': 'system', 'content': 'Write a summary'}, {'role': 'user', 'content': corpus}], temperature=0.2)", "msgs.resultSizeEstimate > 5", None),
-        ("msgs.resultSizeEstimate > 5", "send_message(userId='me', body={'raw': ai.choices[0].message.content})", "Yes"),
+        ("msgs.resultSizeEstimate > 5", "send_message(userId='me', body={'raw': ai.choices[0].message.content})", "if msgs.resultSizeEstimate > 5"),
     ])
     assert expected_edges == actual_edges
 
@@ -1545,11 +1545,11 @@ def main(event) -> None:
         ("input: event", "lm = list_messages(userId='me', maxResults=100)", None),
         ("lm = list_messages(userId='me', maxResults=100)", "count = len(lm.messages)", None),
         ("count = len(lm.messages)", "count < 5", None),
-        ("count < 5", "raw = 'raw'", "Yes"),
+        ("count < 5", "raw = 'raw'", "if count < 5"),
         ("raw = 'raw'", "send_message(userId='me', body={'raw': raw})", None),
         ("send_message(userId='me', body={'raw': raw})", "print(count, 'email')", None),
         ("print(count, 'email')", "end function return", None),
-        ("count < 5", "for m in lm.messages", "No"),
+        ("count < 5", "for m in lm.messages", "else"),
         ("for m in lm.messages", "comp = create_chat_completion(model='gpt-4.1-mini')", None),
     ])
     assert expected_edges == actual_edges
@@ -1630,13 +1630,237 @@ def main() -> list[str]:
         ("results = []", "for item in items", None),
         ("for item in items", "output:  results", None),
         ("process_item(item)", "item.has_children", None),
-        ("item.has_children", "for child in item.children", "Yes"),
-        ("item.has_children", "finalize_item(item)", "No"),
+        ("item.has_children", "for child in item.children", "if item.has_children"),
+        ("item.has_children", "finalize_item(item)", "else"),
         ("for child in item.children", "process_child(child)", "loop"),  # Loop body entry
         ("for child in item.children", "finalize_item(item)", None),
         ("process_child(child)", "for child in item.children", None),  # Loop back
     ])
     assert expected_edges == actual_edges
+
+def test_export_from_code_if_elif_else_multi_branch():
+    """Test if/elif/else creates a single condition node with multi-branch edges."""
+    code = '''
+@flow
+def main() -> list[str]:
+    customer_ids = get_customer_ids()
+    results = []
+    if len(customer_ids) > 5:
+        for customer_id in customer_ids:
+            results.append(process_customer(customer_id))
+    elif len(customer_ids) > 0:
+        results.append(process_customer(customer_ids[0]))
+    else:
+        results.append("No customers found")
+    notify_customers(customer_ids)
+    return results
+    '''
+    flow = ReactFlow.from_code(code, field="main", simplify=False, inner=False)
+    result = flow.export()
+
+    # Expected nodes (type, label)
+    expected_nodes = set([
+        ("start", "input:"),
+        ("operation", "customer_ids = get_customer_ids()"),
+        ("operation", "results = []"),
+        ("condition", "len(customer_ids) > 5"),  # Only ONE condition node
+        ("loop", "for customer_id in customer_ids"),
+        ("subroutine", "results.append(process_customer(customer_id))"),
+        ("subroutine", "results.append(process_customer(customer_ids[0]))"),
+        ("subroutine", "results.append('No customers found')"),
+        ("subroutine", "notify_customers(customer_ids)"),
+        ("end", "output:  results"),
+    ])
+    actual_nodes = set((n['type'], n['data']['label']) for n in result['nodes'])
+    assert expected_nodes == actual_nodes, f"Expected {expected_nodes}, got {actual_nodes}"
+
+    # Verify there's only ONE condition node (not two)
+    condition_nodes = [n for n in result['nodes'] if n['type'] == 'condition']
+    assert len(condition_nodes) == 1, f"Expected 1 condition node, got {len(condition_nodes)}"
+
+    # Expected parent relationships (label -> parent_label or None)
+    expected_parents = {
+        "input:": None,
+        "customer_ids = get_customer_ids()": None,
+        "results = []": None,
+        "len(customer_ids) > 5": None,
+        "for customer_id in customer_ids": None,
+        "results.append(process_customer(customer_id))": "for customer_id in customer_ids",
+        "results.append(process_customer(customer_ids[0]))": None,
+        "results.append('No customers found')": None,
+        "notify_customers(customer_ids)": None,
+        "output:  results": None,
+    }
+
+    # Build label to nodes mapping
+    label_to_nodes = {}
+    for n in result['nodes']:
+        label_to_nodes.setdefault(n['data']['label'], []).append(n)
+
+    # Check parent relationships
+    for label, parent_label in expected_parents.items():
+        for node in label_to_nodes.get(label, []):
+            if parent_label is None:
+                assert 'parentId' not in node, f"Node '{label}' should not have parent but has {node.get('parentId')}"
+            else:
+                # Find the expected parent node id by label
+                parent_nodes = label_to_nodes.get(parent_label, [])
+                assert parent_nodes, f"Expected parent node with label '{parent_label}' not found"
+                parent_ids = {pn['id'] for pn in parent_nodes}
+                assert node.get('parentId') in parent_ids, f"Node '{label}' should have parentId in {parent_ids}, got {node.get('parentId')}"
+
+    # Expected edges with multi-branch labels (source_label, target_label, edge_label)
+    label_map = {n['id']: n['data']['label'] for n in result['nodes']}
+    def edge_tuple(e):
+        return (
+            label_map.get(e['source'], e['source']),
+            label_map.get(e['target'], e['target']),
+            e.get('label', None)
+        )
+    actual_edges = set(edge_tuple(e) for e in result['edges'])
+    expected_edges = set([
+        ("input:", "customer_ids = get_customer_ids()", None),
+        ("customer_ids = get_customer_ids()", "results = []", None),
+        ("results = []", "len(customer_ids) > 5", None),
+        # Multi-branch edges from single condition node
+        ("len(customer_ids) > 5", "for customer_id in customer_ids", "if len(customer_ids) > 5"),
+        ("len(customer_ids) > 5", "results.append(process_customer(customer_ids[0]))", "elif len(customer_ids) > 0"),
+        ("len(customer_ids) > 5", "results.append('No customers found')", "else"),
+        # Sequential edges after branches
+        ("for customer_id in customer_ids", "notify_customers(customer_ids)", None),
+        ("results.append(process_customer(customer_ids[0]))", "notify_customers(customer_ids)", None),
+        ("results.append('No customers found')", "notify_customers(customer_ids)", None),
+        ("notify_customers(customer_ids)", "output:  results", None),
+    ])
+    assert expected_edges == actual_edges, f"Expected edges:\n{sorted(expected_edges)}\n\nGot:\n{sorted(actual_edges)}"
+
+    # Verify the multi-branch edge labels explicitly
+    condition_edges = [e for e in result['edges'] if e['source'] == condition_nodes[0]['id']]
+    edge_labels = sorted([e.get('label', '') for e in condition_edges])
+    expected_labels = sorted([
+        "if len(customer_ids) > 5",
+        "elif len(customer_ids) > 0",
+        "else"
+    ])
+    assert edge_labels == expected_labels, f"Expected edge labels {expected_labels}, got {edge_labels}"
+
+def test_export_from_code_if_elif_elif_else_four_branches():
+    """Test if/elif/elif/else creates a single condition node with 4 multi-branch edges."""
+    code = '''
+@flow
+def main() -> str:
+    score = get_score()
+    if score >= 90:
+        grade = "A"
+    elif score >= 80:
+        grade = "B"
+    elif score >= 70:
+        grade = "C"
+    else:
+        grade = "F"
+    return grade
+    '''
+    flow = ReactFlow.from_code(code, field="main", simplify=False, inner=False)
+    result = flow.export()
+
+    # Expected nodes (type, label)
+    expected_nodes = set([
+        ("start", "input:"),
+        ("operation", "score = get_score()"),
+        ("condition", "score >= 90"),  # Only ONE condition node
+        ("operation", "grade = 'A'"),
+        ("operation", "grade = 'B'"),
+        ("operation", "grade = 'C'"),
+        ("operation", "grade = 'F'"),
+        ("end", "output:  grade"),
+    ])
+    actual_nodes = set((n['type'], n['data']['label']) for n in result['nodes'])
+    assert expected_nodes == actual_nodes, f"Expected {expected_nodes}, got {actual_nodes}"
+
+    # Verify there's only ONE condition node (not three)
+    condition_nodes = [n for n in result['nodes'] if n['type'] == 'condition']
+    assert len(condition_nodes) == 1, f"Expected 1 condition node, got {len(condition_nodes)}"
+
+    # Verify the condition has exactly 4 outgoing edges
+    condition_edges = [e for e in result['edges'] if e['source'] == condition_nodes[0]['id']]
+    assert len(condition_edges) == 4, f"Expected 4 edges from condition, got {len(condition_edges)}"
+
+    # Expected parent relationships (label -> parent_label or None)
+    expected_parents = {
+        "input:": None,
+        "score = get_score()": None,
+        "score >= 90": None,
+        "grade = 'A'": None,
+        "grade = 'B'": None,
+        "grade = 'C'": None,
+        "grade = 'F'": None,
+        "output:  grade": None,
+    }
+
+    # Build label to nodes mapping
+    label_to_nodes = {}
+    for n in result['nodes']:
+        label_to_nodes.setdefault(n['data']['label'], []).append(n)
+
+    # Check parent relationships
+    for label, parent_label in expected_parents.items():
+        for node in label_to_nodes.get(label, []):
+            if parent_label is None:
+                assert 'parentId' not in node, f"Node '{label}' should not have parent but has {node.get('parentId')}"
+            else:
+                # Find the expected parent node id by label
+                parent_nodes = label_to_nodes.get(parent_label, [])
+                assert parent_nodes, f"Expected parent node with label '{parent_label}' not found"
+                parent_ids = {pn['id'] for pn in parent_nodes}
+                assert node.get('parentId') in parent_ids, f"Node '{label}' should have parentId in {parent_ids}, got {node.get('parentId')}"
+
+    # Expected edges with multi-branch labels (source_label, target_label, edge_label)
+    label_map = {n['id']: n['data']['label'] for n in result['nodes']}
+    def edge_tuple(e):
+        return (
+            label_map.get(e['source'], e['source']),
+            label_map.get(e['target'], e['target']),
+            e.get('label', None)
+        )
+    actual_edges = set(edge_tuple(e) for e in result['edges'])
+    expected_edges = set([
+        ("input:", "score = get_score()", None),
+        ("score = get_score()", "score >= 90", None),
+        # Four multi-branch edges from single condition node
+        ("score >= 90", "grade = 'A'", "if score >= 90"),
+        ("score >= 90", "grade = 'B'", "elif score >= 80"),
+        ("score >= 90", "grade = 'C'", "elif score >= 70"),
+        ("score >= 90", "grade = 'F'", "else"),
+        # Sequential edges after branches converge
+        ("grade = 'A'", "output:  grade", None),
+        ("grade = 'B'", "output:  grade", None),
+        ("grade = 'C'", "output:  grade", None),
+        ("grade = 'F'", "output:  grade", None),
+    ])
+    assert expected_edges == actual_edges, f"Expected edges:\n{sorted(expected_edges)}\n\nGot:\n{sorted(actual_edges)}"
+
+    # Verify the 4 multi-branch edge labels explicitly
+    edge_labels = sorted([e.get('label', '') for e in condition_edges])
+    expected_labels = sorted([
+        "if score >= 90",
+        "elif score >= 80",
+        "elif score >= 70",
+        "else"
+    ])
+    assert edge_labels == expected_labels, f"Expected edge labels {expected_labels}, got {edge_labels}"
+
+    # Additional verification: ensure labels are in correct order conceptually
+    # (if first, elif middle, else last)
+    labels_with_source_target = [(e.get('label', ''), label_map.get(e['target'], '')) for e in condition_edges]
+
+    # Check that we have exactly one 'if', two 'elif', and one 'else'
+    if_count = sum(1 for label, _ in labels_with_source_target if label.startswith('if '))
+    elif_count = sum(1 for label, _ in labels_with_source_target if label.startswith('elif '))
+    else_count = sum(1 for label, _ in labels_with_source_target if label == 'else')
+
+    assert if_count == 1, f"Expected 1 'if' branch, got {if_count}"
+    assert elif_count == 2, f"Expected 2 'elif' branches, got {elif_count}"
+    assert else_count == 1, f"Expected 1 'else' branch, got {else_count}"
 
 if __name__ == "__main__":
     pytest.main([__file__])
