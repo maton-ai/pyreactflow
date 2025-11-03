@@ -1097,6 +1097,26 @@ class ReactFlow(NodesGroup):
             filtered_nodes.append((orig_node, react_node))
         all_nodes = filtered_nodes
 
+        # Step 1.75: Detect and merge condition chains (if/elif/else)
+        chains = self._detect_condition_chains(all_nodes, all_edges)
+        if chains:
+            nodes_to_remove_ids, edges_to_remove, edges_to_add = self._merge_condition_chains(
+                chains, all_nodes, all_edges
+            )
+
+            # Remove intermediate condition nodes from all_nodes
+            all_nodes = [(orig, react) for orig, react in all_nodes
+                        if react['id'] not in nodes_to_remove_ids]
+
+            # Remove old edges
+            edges_to_remove_set = {(e['source'], e['target'], e.get('label', ''))
+                                  for e in edges_to_remove}
+            all_edges = [e for e in all_edges
+                        if (e['source'], e['target'], e.get('label', '')) not in edges_to_remove_set]
+
+            # Add new multi-branch edges
+            all_edges.extend(edges_to_add)
+
         # Step 2: Identify depth violations and necessary merging
         top_level_loops = []
         loops_to_merge = {}  # loop -> body_node
@@ -1133,7 +1153,7 @@ class ReactFlow(NodesGroup):
                 continue
             
             # Handle regular nodes (including top-level loops)
-            self._process_regular_node(original_node, react_node, all_nodes, final_nodes)
+            self._process_regular_node(original_node, react_node, all_nodes, all_edges, final_nodes)
         
         # Step 4: Process edges 
         self._process_edges_final(all_edges, final_nodes, loops_to_merge, nodes_to_remove, final_edges)
@@ -1415,8 +1435,35 @@ class ReactFlow(NodesGroup):
                     return react_node['id']
         return None
     
-    def _process_regular_node(self, original_node, react_node, all_nodes, final_nodes):
+    def _process_regular_node(self, original_node, react_node, all_nodes, all_edges, final_nodes):
         """Process regular nodes (non-merged) with new parent assignment rules."""
+        # Check if this node is a direct target of a multi-branch edge from a TOP-LEVEL condition
+        # (i.e., a condition that doesn't itself have a parent)
+        # These nodes use edges for control flow and shouldn't have structural parents
+        node_id = react_node['id']
+        is_top_level_multibranch_target = False
+
+        # Find all condition nodes and their parent status
+        condition_nodes_map = {react['id']: react for orig, react in all_nodes if react['type'] == 'condition'}
+
+        for edge in all_edges:
+            if edge['target'] == node_id and edge['source'] in condition_nodes_map:
+                label = edge.get('label', '')
+                # Check if this is a multi-branch edge (if/elif/else)
+                if label.startswith('if ') or label.startswith('elif ') or label == 'else':
+                    # Check if the source condition has a parent
+                    source_condition = condition_nodes_map[edge['source']]
+                    if 'parentId' not in source_condition:
+                        # This is a multi-branch edge from a top-level condition
+                        is_top_level_multibranch_target = True
+                        break
+
+        # If this is a direct target of a multi-branch edge from a top-level condition,
+        # don't assign structural parent. The control flow is already represented by the labeled edge
+        if is_top_level_multibranch_target:
+            final_nodes.append(react_node)
+            return
+
         # Conditions can have loop parents, but not condition parents
         if react_node['type'] == 'condition':
             # Conditions inside loops can have the loop as parent
@@ -1858,10 +1905,195 @@ class ReactFlow(NodesGroup):
             return True
         return False
     
+    def _detect_condition_chains(self, all_nodes, all_edges):
+        """Detect all condition nodes that should use multi-branch format.
+
+        This includes:
+        - Simple if/else (1 condition node with yes/no branches)
+        - if/elif/else chains (2+ condition nodes connected via 'no' edges)
+
+        Returns:
+            List of chains, where each chain is a list of (original_node, react_node) tuples.
+            The first element in each chain is the root condition (if/elif start).
+        """
+        # Find all condition nodes
+        condition_nodes = [(orig, react) for orig, react in all_nodes if react['type'] == 'condition']
+
+        if len(condition_nodes) == 0:
+            return []
+
+        # Build a map of condition nodes by their ID for quick lookup
+        condition_map = {react['id']: (orig, react) for orig, react in condition_nodes}
+
+        # Find which conditions are targets of 'no' edges from other conditions
+        no_edge_targets = set()
+        for edge in all_edges:
+            source_id = edge['source']
+            target_id = edge['target']
+            label = edge.get('label', '')
+
+            # Check if this is a 'no' edge from a condition to another condition
+            if (source_id in condition_map and
+                target_id in condition_map and
+                label in ('no', 'No')):
+                no_edge_targets.add(target_id)
+
+        # Find chain roots (conditions that are NOT targets of 'no' edges)
+        chain_roots = []
+        for orig, react in condition_nodes:
+            if react['id'] not in no_edge_targets:
+                chain_roots.append((orig, react))
+
+        # Build chains by following 'no' edges from each root
+        chains = []
+        for root_orig, root_react in chain_roots:
+            chain = [(root_orig, root_react)]
+            current_id = root_react['id']
+            visited = {current_id}
+
+            # Follow 'no' edges to find the rest of the chain
+            while True:
+                # Find the 'no' edge from current condition
+                next_condition = None
+                for edge in all_edges:
+                    if (edge['source'] == current_id and
+                        edge.get('label') in ('no', 'No') and
+                        edge['target'] in condition_map and
+                        edge['target'] not in visited):
+                        next_condition = condition_map[edge['target']]
+                        break
+
+                if next_condition:
+                    chain.append(next_condition)
+                    current_id = next_condition[1]['id']
+                    visited.add(current_id)
+                else:
+                    break  # No more conditions in this chain
+
+            # Include ALL chains (even single conditions for if/else)
+            # This ensures all if/else statements get multi-branch format
+            chains.append(chain)
+
+        return chains
+
+    def _merge_condition_chains(self, chains, all_nodes, all_edges):
+        """Merge condition chains into single multi-branch condition nodes.
+
+        Handles both:
+        - Simple if/else (single condition with 2 branches)
+        - if/elif/else chains (multiple conditions with 3+ branches)
+
+        Args:
+            chains: List of chains from _detect_condition_chains()
+            all_nodes: List of (original_node, react_node) tuples
+            all_edges: List of edge dictionaries
+
+        Returns:
+            Tuple of (nodes_to_remove, edges_to_remove, edges_to_add)
+            where nodes_to_remove is a set of node IDs to remove from final nodes,
+            edges_to_remove is a set of edge dictionaries to remove,
+            and edges_to_add is a list of new edge dictionaries to add.
+        """
+        nodes_to_remove = set()
+        edges_to_remove = []
+        edges_to_add = []
+
+        for chain in chains:
+            # Keep the first condition as the merged node
+            root_orig, root_react = chain[0]
+
+            # Collect all conditions in this chain (for removal except root)
+            for i in range(1, len(chain)):
+                _, intermediate_react = chain[i]
+                nodes_to_remove.add(intermediate_react['id'])
+
+            # Collect all branch information
+            # Each branch has: (condition_text, target_node_id, branch_type)
+            # branch_type is 'if', 'elif', or 'else'
+            branches = []
+
+            # Process each condition in the chain
+            for idx, (cond_orig, cond_react) in enumerate(chain):
+                condition_text = cond_react['data']['label']
+
+                # Find the 'yes' edge from this condition
+                yes_target = None
+                for edge in all_edges:
+                    if (edge['source'] == cond_react['id'] and
+                        edge.get('label') in ('yes', 'Yes')):
+                        yes_target = edge['target']
+                        edges_to_remove.append(edge)
+                        break
+
+                if yes_target:
+                    # Determine branch type
+                    if idx == 0:
+                        branch_type = 'if'
+                    else:
+                        branch_type = 'elif'
+
+                    branches.append((condition_text, yes_target, branch_type))
+
+            # Find the final 'no' edge from the last condition (this is the 'else' branch)
+            last_cond_orig, last_cond_react = chain[-1]
+            else_target = None
+            else_edge = None
+            for edge in all_edges:
+                if (edge['source'] == last_cond_react['id'] and
+                    edge.get('label') in ('no', 'No')):
+                    else_target = edge['target']
+                    else_edge = edge
+                    edges_to_remove.append(edge)
+                    break
+
+            # Only add 'else' branch if there's actually an else target
+            if else_target:
+                branches.append(('else', else_target, 'else'))
+
+            # Remove all 'no' edges between conditions in the chain
+            for i in range(len(chain) - 1):
+                _, cond_react = chain[i]
+                _, next_cond_react = chain[i + 1]
+
+                for edge in all_edges:
+                    if (edge['source'] == cond_react['id'] and
+                        edge['target'] == next_cond_react['id'] and
+                        edge.get('label') in ('no', 'No')):
+                        edges_to_remove.append(edge)
+                        break
+
+            # Create new multi-branch edges from root to all targets
+            for condition_text, target_id, branch_type in branches:
+                # Create edge label
+                if branch_type == 'else':
+                    edge_label = 'else'
+                else:
+                    edge_label = f"{branch_type} {condition_text}"
+
+                # Create new edge
+                new_edge = {
+                    'id': f"{root_react['id']}->{target_id}-{branch_type}",
+                    'source': root_react['id'],
+                    'target': target_id,
+                    'label': edge_label
+                }
+                edges_to_add.append(new_edge)
+
+        return nodes_to_remove, edges_to_remove, edges_to_add
+
     def _convert_condition_edge_labels(self, edge, final_nodes):
-        """Convert condition edge labels from yes/no to Yes/No and clean up others."""
+        """Convert condition edge labels from yes/no to Yes/No and clean up others.
+
+        Skip multi-branch labels (if/elif/else) created by condition chain merging.
+        """
         source_node = next((n for n in final_nodes if n['id'] == edge['source']), None)
-        
+
+        # Check if this is a multi-branch edge (created by condition chain merging)
+        label = edge.get('label', '')
+        if label.startswith('if ') or label.startswith('elif ') or label == 'else':
+            # This is a multi-branch edge, don't modify it
+            return
+
         if source_node and source_node['type'] == 'condition':
             if edge.get('label') == 'yes':
                 edge['label'] = 'Yes'
