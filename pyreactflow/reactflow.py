@@ -1910,68 +1910,69 @@ class ReactFlow(NodesGroup):
 
         This includes:
         - Simple if/else (1 condition node with yes/no branches)
-        - if/elif/else chains (2+ condition nodes connected via 'no' edges)
+        - if/elif/else chains (2+ condition nodes connected via orelse in AST)
+
+        This function now uses AST structure to distinguish between:
+        - True if/elif/else chains (elif nested in parent's orelse)
+        - Consecutive independent if statements (siblings in body)
 
         Returns:
             List of chains, where each chain is a list of (original_node, react_node) tuples.
             The first element in each chain is the root condition (if/elif start).
         """
+        from pyreactflow.ast_node import IfCondition
+
         # Find all condition nodes
         condition_nodes = [(orig, react) for orig, react in all_nodes if react['type'] == 'condition']
 
         if len(condition_nodes) == 0:
             return []
 
-        # Build a map of condition nodes by their ID for quick lookup
-        condition_map = {react['id']: (orig, react) for orig, react in condition_nodes}
-
-        # Find which conditions are targets of 'no' edges from other conditions
-        no_edge_targets = set()
-        for edge in all_edges:
-            source_id = edge['source']
-            target_id = edge['target']
-            label = edge.get('label', '')
-
-            # Check if this is a 'no' edge from a condition to another condition
-            if (source_id in condition_map and
-                target_id in condition_map and
-                label in ('no', 'No')):
-                no_edge_targets.add(target_id)
-
-        # Find chain roots (conditions that are NOT targets of 'no' edges)
-        chain_roots = []
-        for orig, react in condition_nodes:
-            if react['id'] not in no_edge_targets:
-                chain_roots.append((orig, react))
-
-        # Build chains by following 'no' edges from each root
         chains = []
-        for root_orig, root_react in chain_roots:
-            chain = [(root_orig, root_react)]
-            current_id = root_react['id']
-            visited = {current_id}
+        processed = set()
 
-            # Follow 'no' edges to find the rest of the chain
-            while True:
-                # Find the 'no' edge from current condition
-                next_condition = None
-                for edge in all_edges:
-                    if (edge['source'] == current_id and
-                        edge.get('label') in ('no', 'No') and
-                        edge['target'] in condition_map and
-                        edge['target'] not in visited):
-                        next_condition = condition_map[edge['target']]
+        for orig_node, react_node in condition_nodes:
+            if react_node['id'] in processed:
+                continue
+
+            # Check if this is an IfCondition with AST object
+            if not isinstance(orig_node, IfCondition) or not hasattr(orig_node, 'ast_object'):
+                # Not an IfCondition (might be LoopCondition or other), create a chain of one
+                chains.append([(orig_node, react_node)])
+                processed.add(react_node['id'])
+                continue
+
+            # Build chain by following orelse in AST
+            chain = [(orig_node, react_node)]
+            processed.add(react_node['id'])
+            current_ast = orig_node.ast_object
+
+            # Follow the orelse chain to find elif conditions
+            while current_ast.orelse:
+                # Check if orelse contains exactly one If node (this is an elif)
+                if len(current_ast.orelse) == 1 and isinstance(current_ast.orelse[0], _ast.If):
+                    # This is an elif - find its corresponding node
+                    elif_ast = current_ast.orelse[0]
+
+                    # Find the node corresponding to this elif
+                    elif_node = None
+                    for cond_orig, cond_react in condition_nodes:
+                        if (isinstance(cond_orig, IfCondition) and
+                            hasattr(cond_orig, 'ast_object') and
+                            cond_orig.ast_object is elif_ast):
+                            elif_node = (cond_orig, cond_react)
+                            break
+
+                    if elif_node:
+                        chain.append(elif_node)
+                        processed.add(elif_node[1]['id'])
+                        current_ast = elif_ast
+                    else:
                         break
-
-                if next_condition:
-                    chain.append(next_condition)
-                    current_id = next_condition[1]['id']
-                    visited.add(current_id)
                 else:
-                    break  # No more conditions in this chain
+                    # orelse contains else body or other statements, not elif
+                    break
 
-            # Include ALL chains (even single conditions for if/else)
-            # This ensures all if/else statements get multi-branch format
             chains.append(chain)
 
         return chains
@@ -1979,9 +1980,10 @@ class ReactFlow(NodesGroup):
     def _merge_condition_chains(self, chains, all_nodes, all_edges):
         """Merge condition chains into single multi-branch condition nodes.
 
-        Handles both:
-        - Simple if/else (single condition with 2 branches)
-        - if/elif/else chains (multiple conditions with 3+ branches)
+        Consistently uses multi-branch format:
+        - if/else (2 branches) → "if"/"else" labels
+        - if/elif/else (3+ branches) → "if"/"elif"/"else" labels
+        - if only (1 branch) → "if" label only
 
         Args:
             chains: List of chains from _detect_condition_chains()

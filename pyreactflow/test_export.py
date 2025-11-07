@@ -1862,5 +1862,96 @@ def main() -> str:
     assert elif_count == 2, f"Expected 2 'elif' branches, got {elif_count}"
     assert else_count == 1, f"Expected 1 'else' branch, got {else_count}"
 
+def test_export_from_code_consecutive_independent_if_statements():
+    """Test consecutive independent if statements (not if/elif/else chain).
+
+    This tests the bug fix where consecutive if statements were incorrectly
+    merged into a single condition node with elif branches. Each independent
+    if statement should create its own condition node.
+    """
+    code ='''
+@flow
+def main() -> None:
+    count = get_count()
+
+    if count > 10:
+        process_large(count)
+
+    if count > 0:
+        process_small(count)
+
+    if count == 0:
+        process_empty()
+    '''
+    flow = ReactFlow.from_code(code, field="main", simplify=False, inner=False)
+    result = flow.export()
+
+    # Expected nodes (type, label)
+    expected_nodes = set([
+        ("start", "input:"),
+        ("operation", "count = get_count()"),
+        ("condition", "count > 10"),
+        ("subroutine", "process_large(count)"),
+        ("condition", "count > 0"),
+        ("subroutine", "process_small(count)"),
+        ("condition", "count == 0"),
+        ("subroutine", "process_empty()"),
+    ])
+    actual_nodes = set((n['type'], n['data']['label']) for n in result['nodes'])
+    assert expected_nodes == actual_nodes
+
+    # Verify we have exactly 3 separate condition nodes
+    condition_nodes = [n for n in result['nodes'] if n['type'] == 'condition']
+    assert len(condition_nodes) == 3, f"Expected 3 condition nodes, got {len(condition_nodes)}"
+
+    # Expected parent relationships (all should be top-level)
+    for node in result['nodes']:
+        assert 'parentId' not in node, f"Node '{node['data']['label']}' should not have parent but has {node.get('parentId')}"
+
+    # Expected edges with if/else labels (source_label, target_label, edge_label)
+    label_map = {n['id']: n['data']['label'] for n in result['nodes']}
+    def edge_tuple(e):
+        return (
+            label_map.get(e['source'], e['source']),
+            label_map.get(e['target'], e['target']),
+            e.get('label', None)
+        )
+    actual_edges = set(edge_tuple(e) for e in result['edges'])
+
+    expected_edges = set([
+        ("input:", "count = get_count()", None),
+        ("count = get_count()", "count > 10", None),
+        # First if statement branches
+        ("count > 10", "process_large(count)", "if count > 10"),
+        ("count > 10", "count > 0", "else"),  # No branch goes to next if
+        # Second if statement branches
+        ("process_large(count)", "count > 0", None),  # Yes branch merges to next if
+        ("count > 0", "process_small(count)", "if count > 0"),
+        ("count > 0", "count == 0", "else"),  # No branch goes to next if
+        # Third if statement branches
+        ("process_small(count)", "count == 0", None),  # Yes branch merges to next if
+        ("count == 0", "process_empty()", "if count == 0"),
+    ])
+    assert expected_edges == actual_edges, f"Expected edges:\n{sorted(expected_edges)}\n\nGot:\n{sorted(actual_edges)}"
+
+    # Verify each condition has the correct branch structure
+    # First condition (count > 10) should have if/else branches
+    cond1_edges = [e for e in result['edges'] if label_map.get(e['source']) == "count > 10"]
+    assert len(cond1_edges) == 2, "First condition should have 2 branches (if/else)"
+    cond1_labels = sorted([e.get('label', '') for e in cond1_edges])
+    assert cond1_labels == ['else', 'if count > 10']
+
+    # Second condition (count > 0) should have if/else branches
+    cond2_edges = [e for e in result['edges'] if label_map.get(e['source']) == "count > 0"]
+    assert len(cond2_edges) == 2, "Second condition should have 2 branches (if/else)"
+    cond2_labels = sorted([e.get('label', '') for e in cond2_edges])
+    assert cond2_labels == ['else', 'if count > 0']
+
+    # Third condition (count == 0) should have only if branch (no else, nothing follows)
+    cond3_edges = [e for e in result['edges'] if label_map.get(e['source']) == "count == 0"]
+    assert len(cond3_edges) == 1, "Third condition should have 1 branch (if only)"
+    cond3_labels = [e.get('label', '') for e in cond3_edges]
+    assert cond3_labels == ['if count == 0']
+
 if __name__ == "__main__":
     pytest.main([__file__])
