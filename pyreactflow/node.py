@@ -14,7 +14,7 @@ import itertools  # for count
 from typing import List, TypeVar, Optional
 
 # AsNode is a TypeVar for Node and its subclasses
-AsNode = TypeVar('AsNode', bound='Node')
+AsNode = TypeVar("AsNode", bound="Node")
 
 __DEBUG = False
 
@@ -23,13 +23,14 @@ def debug(*args, **kwargs):
     if not __DEBUG:
         return
     import sys
-    print('DBG', *args, **kwargs, file=sys.stderr)
+
+    print("DBG", *args, **kwargs, file=sys.stderr)
 
 
 class Node(object):
-    """Node is an abstract class for kinds of flowchart node.
-    """
-    node_type = 'node'  # flowchart.js Node Syntax: nodeType
+    """Node is an abstract class for kinds of flowchart node."""
+
+    node_type = "node"  # flowchart.js Node Syntax: nodeType
 
     # object id: an iterator
     # each entities call next(self._node_id) to get an ID.
@@ -37,8 +38,8 @@ class Node(object):
     _node_id = itertools.count(0)
 
     def __init__(self):
-        self.node_name = ''  # flowchart.js Node Syntax: nodeName
-        self.node_text = ''  # flowchart.js Node Syntax: nodeText
+        self.node_name = ""  # flowchart.js Node Syntax: nodeName
+        self.node_text = ""  # flowchart.js Node Syntax: nodeText
         self.connections: List[Connection] = []  # connected (next / sub) nodes.
 
         self.params = {}  # flowchart.js #115 e.g. `element(param1=value1,param2=value2)=>start: Start`
@@ -59,12 +60,12 @@ class Node(object):
         Returns:
             str
         """
-        params = ''
+        params = ""
         if self.params:
-            params = ','.join((f'{k}={self.params[k]}' for k in self.params))  # 'param1=value1,param2=value2'
-            params = f'({params})'
+            params = ",".join((f"{k}={self.params[k]}" for k in self.params))  # 'param1=value1,param2=value2'
+            params = f"({params})"
 
-        return f'{self.node_name}{params}=>{self.node_type}: {self.node_text}\n'
+        return f"{self.node_name}{params}=>{self.node_type}: {self.node_text}\n"
 
     def fc_connection(self) -> str:
         """fc_connection returns the flowchart.js node connection string of current Node (self only, subs excepted).
@@ -72,7 +73,7 @@ class Node(object):
         Returns:
             a flowchart.js node connection string: "node_name->sub_node_name"
         """
-        fc_conn_str = ''
+        fc_conn_str = ""
         for connection in self.connections:
             if isinstance(connection, Connection):
                 connection.params.append(self.connect_direction)
@@ -113,7 +114,7 @@ class Node(object):
                 # debug(f'Warning: Node._traverse: unexpected connection: {c}')
                 pass
 
-    def connect(self, sub_node: AsNode, direction='') -> None:
+    def connect(self, sub_node: AsNode, direction="") -> None:
         """connect: self->sub_node
 
         This method is a shorthand for node.connections.append(Connection(sub_node))
@@ -152,7 +153,7 @@ class Node(object):
         self.connect_direction = connect_direction
 
     def set_param(self, key: str, value: str):
-        """ Set a `(param=value)`.
+        """Set a `(param=value)`.
         See: https://github.com/adrai/flowchart.js/issues/115
 
         Args:
@@ -166,55 +167,56 @@ class Node(object):
             self.params[key] = value
 
     def __repr__(self):
-        return f'<Node({self.node_name}): {self.node_text}>'
+        return f"<Node({self.node_name}): {self.node_text}>"
 
     def to_react_flow_node(self, position=None):
         # Default: emit a node for React Flow
         if position is None:
-            position = {'x': 0, 'y': 0}
+            position = {"x": 0, "y": 0}
         # Ensure label is a single line
-        label = ' '.join(self.node_text.splitlines()).strip() if self.node_text else ''
+        label = " ".join(self.node_text.splitlines()).strip() if self.node_text else ""
 
         # Base data structure
-        data = {'label': label}
+        data = {"label": label}
 
         # Extract variables and function calls if this is an AstNode
         # Import here to avoid circular imports
         from pyreactflow.ast_node import AstNode
+
         if isinstance(self, AstNode):
             variables = self.extract_variables()
             if variables:
-                data['vars'] = variables
+                data["vars"] = variables
 
             function_calls = self.extract_function_calls()
             if function_calls:
-                data['tasks'] = function_calls
+                data["tasks"] = function_calls
 
             # Extract AST position information
-            if hasattr(self, 'ast_object') and self.ast_object:
+            if hasattr(self, "ast_object") and self.ast_object:
                 ast_obj = self.ast_object
-                if hasattr(ast_obj, 'lineno'):
-                    data['lineno'] = ast_obj.lineno
-                if hasattr(ast_obj, 'end_lineno'):
-                    data['end_lineno'] = ast_obj.end_lineno
-                if hasattr(ast_obj, 'col_offset'):
-                    data['col_offset'] = ast_obj.col_offset
-                if hasattr(ast_obj, 'end_col_offset'):
-                    data['end_col_offset'] = ast_obj.end_col_offset
+                if hasattr(ast_obj, "lineno"):
+                    data["lineno"] = ast_obj.lineno
+                if hasattr(ast_obj, "end_lineno"):
+                    data["end_lineno"] = ast_obj.end_lineno
+                if hasattr(ast_obj, "col_offset"):
+                    data["col_offset"] = ast_obj.col_offset
+                if hasattr(ast_obj, "end_col_offset"):
+                    data["end_col_offset"] = ast_obj.end_col_offset
 
         return {
-            'id': self.node_name,
-            'type': self.node_type,
-            'data': data,
-            'position': position,
+            "id": self.node_name,
+            "type": self.node_type,
+            "data": data,
+            "position": position,
         }
 
     def to_react_flow_edges(self):
         edges = []
         edge_id_counter = 0
 
-        for connection in getattr(self, 'connections', []):
-            if not hasattr(connection, 'next_node') or not connection.next_node:
+        for connection in getattr(self, "connections", []):
+            if not hasattr(connection, "next_node") or not connection.next_node:
                 continue
 
             # See through transparent nodes to find the real target
@@ -223,7 +225,7 @@ class Node(object):
                 target_node = target_node.child
 
             # Skip if there's no valid final target
-            if not target_node or not hasattr(target_node, 'node_name') or not target_node.node_name:
+            if not target_node or not hasattr(target_node, "node_name") or not target_node.node_name:
                 continue
 
             # Skip if source node doesn't have a valid name
@@ -235,17 +237,17 @@ class Node(object):
             edge_id_counter += 1
 
             edge = {
-                'id': edge_id,
-                'source': self.node_name,
-                'target': target_node.node_name,
+                "id": edge_id,
+                "source": self.node_name,
+                "target": target_node.node_name,
             }
 
             # If this is a ConditionNode, label yes/no
             if isinstance(self, ConditionNode):
-                if connection is getattr(self, 'connection_yes', None):
-                    edge['label'] = self.get_yes_label()
-                elif connection is getattr(self, 'connection_no', None):
-                    edge['label'] = self.get_no_label()
+                if connection is getattr(self, "connection_yes", None):
+                    edge["label"] = self.get_yes_label()
+                elif connection is getattr(self, "connection_no", None):
+                    edge["label"] = self.get_no_label()
 
             edges.append(edge)
 
@@ -264,6 +266,7 @@ class Connection(object):
     instead, the Connection object is contained in `thisNode`.
     This is in order to avoid the recursion reference.
     """
+
     next_node: Node = None
     params: List[str] = []
 
@@ -285,14 +288,14 @@ class Connection(object):
             return ""
         # assert isinstance(self.next_node, Node) or self.next_node is None
 
-        fc_conn_str = ''
+        fc_conn_str = ""
 
         if isinstance(self.next_node, Node):
             if not self.next_node.node_name:
-                return ''
-            params = ','.join(set(filter(lambda x: x, self.params)))
-            specification = f'({params})' if params else ''
-            fc_conn_str += f'{src_node.node_name}{specification}->{self.next_node.node_name}\n'
+                return ""
+            params = ",".join(set(filter(lambda x: x, self.params)))
+            specification = f"({params})" if params else ""
+            fc_conn_str += f"{src_node.node_name}{specification}->{self.next_node.node_name}\n"
         # else (self.next_node is None): fc_conn_str = ''
 
         # debug(f"Connection.fc_connection: {fc_conn_str}")
@@ -303,7 +306,7 @@ class Connection(object):
         self.params.append(param)
 
     def __repr__(self):
-        return f'<Connection: to={self.next_node}, params={self.params}>'
+        return f"<Connection: to={self.next_node}, params={self.params}>"
 
 
 class NodesGroup(Node):
@@ -322,8 +325,8 @@ class NodesGroup(Node):
         self.head = head_node
         self.tails = tail_nodes
 
-        self._fc_definitions = ''
-        self._fc_connections = ''
+        self._fc_definitions = ""
+        self._fc_connections = ""
 
         # parent node of NodesGroup calls fc_connection, getting connection to group head
         if self.head:
@@ -365,7 +368,7 @@ class NodesGroup(Node):
 
         self.head._traverse(func_stop_at_tails, visited_flag)
 
-    def connect(self, sub_node, direction='') -> None:
+    def connect(self, sub_node, direction="") -> None:
         for t in self.tails:
             if isinstance(t, Node):
                 t.connect(sub_node, direction)
@@ -374,8 +377,8 @@ class NodesGroup(Node):
         """
         clean _fc_definitions & _fc_connections
         """
-        self._fc_definitions = ''
-        self._fc_connections = ''
+        self._fc_definitions = ""
+        self._fc_connections = ""
 
     def _add_node_fc(self, node: Node) -> bool:
         """_add_node_fc visits a Node (in-group node), add it to NodesGroup.
@@ -400,7 +403,7 @@ class NodesGroup(Node):
         """
         self._clean_fc()
 
-        visited_flag = f'{id(self)}-{time.time()}-{uuid.uuid4()}'
+        visited_flag = f"{id(self)}-{time.time()}-{uuid.uuid4()}"
         self._traverse(self._add_node_fc, visited_flag)
 
     def simplify(self) -> None:
@@ -423,7 +426,7 @@ class NodesGroup(Node):
         try:
             return self.head.node_name
         except AttributeError:  # before NodesGroup.__init__ done
-            return ''
+            return ""
 
     @node_name.setter
     def node_name(self, value):
@@ -448,128 +451,130 @@ class NodesGroup(Node):
 # flowchart.js flowchart DSL Nodes
 # https://github.com/adrai/flowchart.js#node-syntax
 
+
 class StartNode(Node):
-    """StartNode is a Node subclass for flowchart.js `start` node
-    """
-    node_type = 'start'
+    """StartNode is a Node subclass for flowchart.js `start` node"""
+
+    node_type = "start"
 
     def __init__(self, name: str):
         super().__init__()
-        self.node_name = f'st{self.id}'
-        self.node_text = f'start {name}'
+        self.node_name = f"st{self.id}"
+        self.node_text = f"start {name}"
 
 
 class EndNode(Node):
-    """EndNode is a Node subclass for flowchart.js `end` node
-    """
-    node_type = 'end'
+    """EndNode is a Node subclass for flowchart.js `end` node"""
+
+    node_type = "end"
 
     def __init__(self, name: str):
         super().__init__()
-        self.node_name = f'e{self.id}'
-        self.node_text = f'end {name}'
+        self.node_name = f"e{self.id}"
+        self.node_text = f"end {name}"
 
 
 class OperationNode(Node):
-    """OperationNode is a Node subclass for flowchart.js `operation` node
-    """
-    node_type = 'operation'
+    """OperationNode is a Node subclass for flowchart.js `operation` node"""
+
+    node_type = "operation"
 
     def __init__(self, operation: str):
         super().__init__()
-        self.node_name = f'op{self.id}'
-        self.node_text = f'{operation}'
+        self.node_name = f"op{self.id}"
+        self.node_text = f"{operation}"
 
 
 class InputOutputNode(Node):
-    """InputOutputNode is a Node subclass for flowchart.js `inputoutput` node
-    """
-    node_type = 'inputoutput'
+    """InputOutputNode is a Node subclass for flowchart.js `inputoutput` node"""
 
-    INPUT = 'input'
-    OUTPUT = 'output'
+    node_type = "inputoutput"
+
+    INPUT = "input"
+    OUTPUT = "output"
 
     def __init__(self, input_or_output: str, content: str, params=None):
         super().__init__()
-        self.node_name = f'io{self.id}'
+        self.node_name = f"io{self.id}"
         # Handle empty content to avoid trailing spaces
         if content.strip():
-            self.node_text = f'{input_or_output}: {content}'
+            self.node_text = f"{input_or_output}: {content}"
         else:
-            self.node_text = f'{input_or_output}:'
+            self.node_text = f"{input_or_output}:"
         self.input_or_output = input_or_output
         self.params = params or []
 
     def to_react_flow_node(self, position=None):
         """Override to handle start type for input nodes and end type for output nodes, include parameters."""
         if position is None:
-            position = {'x': 0, 'y': 0}
+            position = {"x": 0, "y": 0}
 
         # Ensure label is a single line
-        label = ' '.join(self.node_text.splitlines()).strip() if self.node_text else ''
+        label = " ".join(self.node_text.splitlines()).strip() if self.node_text else ""
 
         # Change input nodes to type "start", output nodes to type "end"
-        node_type = 'start' if self.input_or_output == self.INPUT else 'end'
+        node_type = "start" if self.input_or_output == self.INPUT else "end"
 
         # Base data structure
-        data = {'label': label}
+        data = {"label": label}
 
         # Extract variables and function calls if this is an AstNode
         # Import here to avoid circular imports
         from pyreactflow.ast_node import AstNode
+
         if isinstance(self, AstNode):
             variables = self.extract_variables()
             if variables:
-                data['vars'] = variables
+                data["vars"] = variables
 
             # Only extract function calls for non-input nodes
             # Input nodes should not have tasks from function bodies
             if not (self.input_or_output == self.INPUT):
                 function_calls = self.extract_function_calls()
                 if function_calls:
-                    data['tasks'] = function_calls
+                    data["tasks"] = function_calls
 
             # Extract AST position information
-            if hasattr(self, 'ast_object') and self.ast_object:
+            if hasattr(self, "ast_object") and self.ast_object:
                 ast_obj = self.ast_object
-                if hasattr(ast_obj, 'lineno'):
-                    data['lineno'] = ast_obj.lineno
-                if hasattr(ast_obj, 'end_lineno'):
-                    data['end_lineno'] = ast_obj.end_lineno
-                if hasattr(ast_obj, 'col_offset'):
-                    data['col_offset'] = ast_obj.col_offset
-                if hasattr(ast_obj, 'end_col_offset'):
-                    data['end_col_offset'] = ast_obj.end_col_offset
+                if hasattr(ast_obj, "lineno"):
+                    data["lineno"] = ast_obj.lineno
+                if hasattr(ast_obj, "end_lineno"):
+                    data["end_lineno"] = ast_obj.end_lineno
+                if hasattr(ast_obj, "col_offset"):
+                    data["col_offset"] = ast_obj.col_offset
+                if hasattr(ast_obj, "end_col_offset"):
+                    data["end_col_offset"] = ast_obj.end_col_offset
 
         # Add parameters for input nodes
         if self.input_or_output == self.INPUT and self.params:
-            data['params'] = self.params
+            data["params"] = self.params
 
         node_data = {
-            'id': self.node_name,
-            'type': node_type,
-            'data': data,
-            'position': position,
+            "id": self.node_name,
+            "type": node_type,
+            "data": data,
+            "position": position,
         }
 
         return node_data
 
 
 class SubroutineNode(Node):
-    """SubroutineNode is a Node subclass for flowchart.js `subroutine` node
-    """
-    node_type = 'subroutine'
+    """SubroutineNode is a Node subclass for flowchart.js `subroutine` node"""
+
+    node_type = "subroutine"
 
     def __init__(self, subroutine: str):
         super().__init__()
-        self.node_name = f'sub{self.id}'
-        self.node_text = f'{subroutine}'
+        self.node_name = f"sub{self.id}"
+        self.node_text = f"{subroutine}"
 
 
 class ConditionNode(Node):
-    """ConditionNode is a Node subclass for flowchart.js `condition` node
-    """
-    node_type = 'condition'
+    """ConditionNode is a Node subclass for flowchart.js `condition` node"""
+
+    node_type = "condition"
 
     def __init__(self, cond: str, align_next=True):
         """ConditionNode is a Node subclass for flowchart.js `condition` node.
@@ -582,8 +587,8 @@ class ConditionNode(Node):
             align_next: bool: set False to write a `align-next=no` param. (default True)
         """
         super().__init__()
-        self.node_name = f'cond{self.id}'
-        self.node_text = f'{cond}'
+        self.node_name = f"cond{self.id}"
+        self.node_text = f"{cond}"
 
         self.connection_yes: Optional[Connection] = None
         self.connection_no: Optional[Connection] = None
@@ -592,20 +597,20 @@ class ConditionNode(Node):
             self.no_align_next()
 
     def get_yes_label(self) -> str:
-        return 'yes'
+        return "yes"
 
     def get_no_label(self) -> str:
-        return 'no'
+        return "no"
 
-    def connect_yes(self, yes_node: Optional[Node], direction: str = ''):
+    def connect_yes(self, yes_node: Optional[Node], direction: str = ""):
         # yes_node is optional due to the virtual node is connecting to None
         condyn = CondYN(self, CondYN.YES, yes_node)
-        self.connection_yes = Connection(condyn, 'yes', direction)
+        self.connection_yes = Connection(condyn, "yes", direction)
         self.connections.append(self.connection_yes)
 
-    def connect_no(self, no_node: Optional[Node], direction: str = ''):
+    def connect_no(self, no_node: Optional[Node], direction: str = ""):
         condyn = CondYN(self, CondYN.NO, no_node)
-        self.connection_no = Connection(condyn, 'no', direction)
+        self.connection_no = Connection(condyn, "no", direction)
         self.connections.append(self.connection_no)
 
     def no_align_next(self):
@@ -616,7 +621,7 @@ class ConditionNode(Node):
         Returns:
             None
         """
-        self.set_param('align-next', 'no')
+        self.set_param("align-next", "no")
 
 
 class TransparentNode(Node):
@@ -681,7 +686,7 @@ class TransparentNode(Node):
             pass
 
     def fc_definition(self) -> str:
-        return ''
+        return ""
 
     def fc_connection(self) -> str:
         assert isinstance(self.parent, Node)
@@ -719,8 +724,8 @@ class CondYN(TransparentNode):
     New codes should use TransparentNode instead of CondYN.
     """
 
-    YES = 'yes'
-    NO = 'no'
+    YES = "yes"
+    NO = "no"
 
     def __init__(self, cond: Node, yn: str, sub: Node = None):
         """CondYesNode is a Node subclass for flowchart.js `cond(yes|no)->sub`
