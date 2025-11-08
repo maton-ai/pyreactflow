@@ -44,7 +44,11 @@ def main() -> list[str]:
     label_map = {n["id"]: n["data"]["label"] for n in result["nodes"]}
 
     def edge_tuple(e):
-        return (label_map.get(e["source"], e["source"]), label_map.get(e["target"], e["target"]), e.get("label", None))
+        return (
+            label_map.get(e["source"], e["source"]),
+            label_map.get(e["target"], e["target"]),
+            e.get("label", None),
+        )
 
     actual_edges = set(edge_tuple(e) for e in result["edges"])
     expected_edges = set(
@@ -108,11 +112,15 @@ def main() -> list[str]:
     for label, parent_label in expected_parents.items():
         for node in label_to_nodes.get(label, []):
             if parent_label is None:
-                assert "parentId" not in node, f"Node '{label}' should not have parent but has {node.get('parentId')}"
+                assert (
+                    "parentId" not in node
+                ), f"Node '{label}' should not have parent but has {node.get('parentId')}"
             else:
                 # Find the expected parent node id by label
                 parent_nodes = label_to_nodes.get(parent_label, [])
-                assert parent_nodes, f"Expected parent node with label '{parent_label}' not found"
+                assert (
+                    parent_nodes
+                ), f"Expected parent node with label '{parent_label}' not found"
                 parent_ids = {pn["id"] for pn in parent_nodes}
                 assert (
                     node.get("parentId") in parent_ids
@@ -122,7 +130,11 @@ def main() -> list[str]:
     label_map = {n["id"]: n["data"]["label"] for n in result["nodes"]}
 
     def edge_tuple(e):
-        return (label_map.get(e["source"], e["source"]), label_map.get(e["target"], e["target"]), e.get("label", None))
+        return (
+            label_map.get(e["source"], e["source"]),
+            label_map.get(e["target"], e["target"]),
+            e.get("label", None),
+        )
 
     actual_edges = set(edge_tuple(e) for e in result["edges"])
     expected_edges = set(
@@ -130,9 +142,17 @@ def main() -> list[str]:
             ("input:", "customer_ids = get_customer_ids()", None),
             ("customer_ids = get_customer_ids()", "results = []", None),
             ("results = []", "len(customer_ids) > 0", None),
-            ("len(customer_ids) > 0", "print(f'Customers do exist: {len(customer_ids)}')", "if len(customer_ids) > 0"),
+            (
+                "len(customer_ids) > 0",
+                "print(f'Customers do exist: {len(customer_ids)}')",
+                "if len(customer_ids) > 0",
+            ),
             ("len(customer_ids) > 0", "print('No customers')", "else"),
-            ("print(f'Customers do exist: {len(customer_ids)}')", "output:  results", None),
+            (
+                "print(f'Customers do exist: {len(customer_ids)}')",
+                "output:  results",
+                None,
+            ),
             ("print('No customers')", "output:  results", None),
         ]
     )
@@ -188,11 +208,15 @@ def main() -> list[str]:
     for label, parent_label in expected_parents.items():
         for node in label_to_nodes.get(label, []):
             if parent_label is None:
-                assert "parentId" not in node, f"Node '{label}' should not have parent but has {node.get('parentId')}"
+                assert (
+                    "parentId" not in node
+                ), f"Node '{label}' should not have parent but has {node.get('parentId')}"
             else:
                 # Find the expected parent node id by label
                 parent_nodes = label_to_nodes.get(parent_label, [])
-                assert parent_nodes, f"Expected parent node with label '{parent_label}' not found"
+                assert (
+                    parent_nodes
+                ), f"Expected parent node with label '{parent_label}' not found"
                 parent_ids = {pn["id"] for pn in parent_nodes}
                 assert (
                     node.get("parentId") in parent_ids
@@ -202,7 +226,11 @@ def main() -> list[str]:
     label_map = {n["id"]: n["data"]["label"] for n in result["nodes"]}
 
     def edge_tuple(e):
-        return (label_map.get(e["source"], e["source"]), label_map.get(e["target"], e["target"]), e.get("label", None))
+        return (
+            label_map.get(e["source"], e["source"]),
+            label_map.get(e["target"], e["target"]),
+            e.get("label", None),
+        )
 
     actual_edges = set(edge_tuple(e) for e in result["edges"])
     expected_edges = set(
@@ -211,7 +239,11 @@ def main() -> list[str]:
             ("customer_ids = get_customer_ids()", "results = []", None),
             ("results = []", "for customer_id in customer_ids", None),
             ("for customer_id in customer_ids", "output:  results", None),
-            ("results.append(process_customer(customer_id))", "notify_customer(customer_id)", None),
+            (
+                "results.append(process_customer(customer_id))",
+                "notify_customer(customer_id)",
+                None,
+            ),
         ]
     )
     assert expected_edges == actual_edges
@@ -273,7 +305,9 @@ def main() -> list[str]:
             else:
                 # Find the expected parent node id by label
                 parent_nodes = label_to_nodes.get(parent_label, [])
-                assert parent_nodes, f"Expected parent node with label '{parent_label}' not found"
+                assert (
+                    parent_nodes
+                ), f"Expected parent node with label '{parent_label}' not found"
                 parent_ids = {pn["id"] for pn in parent_nodes}
                 assert (
                     node.get("parentId") in parent_ids
@@ -283,7 +317,11 @@ def main() -> list[str]:
     label_map = {n["id"]: n["data"]["label"] for n in result["nodes"]}
 
     def edge_tuple(e):
-        return (label_map.get(e["source"], e["source"]), label_map.get(e["target"], e["target"]), e.get("label", None))
+        return (
+            label_map.get(e["source"], e["source"]),
+            label_map.get(e["target"], e["target"]),
+            e.get("label", None),
+        )
 
     actual_edges = set(edge_tuple(e) for e in result["edges"])
     expected_edges = set(
@@ -291,7 +329,11 @@ def main() -> list[str]:
             ("results = []", "len(customer_ids) > 0", None),
             ("customer_ids = get_customer_ids()", "results = []", None),
             ("input:", "customer_ids = get_customer_ids()", None),
-            ("len(customer_ids) > 0", "for customer_id in customer_ids", "if len(customer_ids) > 0"),
+            (
+                "len(customer_ids) > 0",
+                "for customer_id in customer_ids",
+                "if len(customer_ids) > 0",
+            ),
             ("len(customer_ids) > 0", "for customer_id in customer_ids", "else"),
             ("for customer_id in customer_ids", "output:  results", None),
         ]
@@ -363,9 +405,17 @@ def main() -> list[str]:
             ("results = []", "len(customer_ids) > 0", None),
             ("customer_ids = get_customer_ids()", "results = []", None),
             ("input:", "customer_ids = get_customer_ids()", None),
-            ("len(customer_ids) > 0", "for customer_id in customer_ids", "if len(customer_ids) > 0"),
+            (
+                "len(customer_ids) > 0",
+                "for customer_id in customer_ids",
+                "if len(customer_ids) > 0",
+            ),
             ("len(customer_ids) > 0", "for customer_id in customer_ids", "else"),
-            ("results.append(process_customer(customer_id))", "notify_customer(customer_id)", None),
+            (
+                "results.append(process_customer(customer_id))",
+                "notify_customer(customer_id)",
+                None,
+            ),
             ("for customer_id in customer_ids", "output:  results", None),
         ]
     )
@@ -409,7 +459,10 @@ def main() -> None:
             ("start", "input:"),
             ("loop", "while True"),
             ("operation", "now = datetime.now()"),
-            ("operation", "target_time = now.replace(hour=9, minute=0, second=0, microsecond=0)"),
+            (
+                "operation",
+                "target_time = now.replace(hour=9, minute=0, second=0, microsecond=0)",
+            ),
             ("condition", "now >= target_time"),
             ("operation", "pokemon = fetch_random_pokemon()"),
             ("subroutine", "print(pokemon)"),
@@ -446,11 +499,15 @@ def main() -> None:
     for label, parent_label in expected_parents.items():
         for node in label_to_nodes.get(label, []):
             if parent_label is None:
-                assert "parentId" not in node, f"Node '{label}' should not have parent but has {node.get('parentId')}"
+                assert (
+                    "parentId" not in node
+                ), f"Node '{label}' should not have parent but has {node.get('parentId')}"
             else:
                 # Find the expected parent node id by label
                 parent_nodes = label_to_nodes.get(parent_label, [])
-                assert parent_nodes, f"Expected parent node with label '{parent_label}' not found"
+                assert (
+                    parent_nodes
+                ), f"Expected parent node with label '{parent_label}' not found"
                 parent_ids = {pn["id"] for pn in parent_nodes}
                 assert (
                     node.get("parentId") in parent_ids
@@ -460,21 +517,53 @@ def main() -> None:
     label_map = {n["id"]: n["data"]["label"] for n in result["nodes"]}
 
     def edge_tuple(e):
-        return (label_map.get(e["source"], e["source"]), label_map.get(e["target"], e["target"]), e.get("label", None))
+        return (
+            label_map.get(e["source"], e["source"]),
+            label_map.get(e["target"], e["target"]),
+            e.get("label", None),
+        )
 
     actual_edges = set(edge_tuple(e) for e in result["edges"])
     expected_edges = set(
         [
             ("input:", "while True", None),
-            ("now = datetime.now()", "target_time = now.replace(hour=9, minute=0, second=0, microsecond=0)", None),
-            ("target_time = now.replace(hour=9, minute=0, second=0, microsecond=0)", "now >= target_time", None),
-            ("now >= target_time", "pokemon = fetch_random_pokemon()", "if now >= target_time"),
-            ("now >= target_time", "sleep_secs = (target_time - now).total_seconds()", "else"),
+            (
+                "now = datetime.now()",
+                "target_time = now.replace(hour=9, minute=0, second=0, microsecond=0)",
+                None,
+            ),
+            (
+                "target_time = now.replace(hour=9, minute=0, second=0, microsecond=0)",
+                "now >= target_time",
+                None,
+            ),
+            (
+                "now >= target_time",
+                "pokemon = fetch_random_pokemon()",
+                "if now >= target_time",
+            ),
+            (
+                "now >= target_time",
+                "sleep_secs = (target_time - now).total_seconds()",
+                "else",
+            ),
             ("pokemon = fetch_random_pokemon()", "print(pokemon)", None),
             ("print(pokemon)", "next_run = target_time + timedelta(days=1)", None),
-            ("next_run = target_time + timedelta(days=1)", "sleep_secs = (next_run - now).total_seconds()", None),
-            ("sleep_secs = (next_run - now).total_seconds()", "time.sleep(sleep_secs)", None),
-            ("sleep_secs = (target_time - now).total_seconds()", "time.sleep(sleep_secs)", None),
+            (
+                "next_run = target_time + timedelta(days=1)",
+                "sleep_secs = (next_run - now).total_seconds()",
+                None,
+            ),
+            (
+                "sleep_secs = (next_run - now).total_seconds()",
+                "time.sleep(sleep_secs)",
+                None,
+            ),
+            (
+                "sleep_secs = (target_time - now).total_seconds()",
+                "time.sleep(sleep_secs)",
+                None,
+            ),
         ]
     )
     assert expected_edges == actual_edges
@@ -513,7 +602,10 @@ def main() -> None:
             ("start", "input:"),
             ("loop", "while True"),
             ("operation", "now = datetime.now()"),
-            ("operation", "target_time = now.replace(hour=9, minute=0, second=0, microsecond=0)"),
+            (
+                "operation",
+                "target_time = now.replace(hour=9, minute=0, second=0, microsecond=0)",
+            ),
             ("condition", "now >= target_time"),
             ("operation", "pokemon = fetch_random_pokemon()"),
             ("subroutine", "print(pokemon)"),
@@ -550,11 +642,15 @@ def main() -> None:
     for label, parent_label in expected_parents.items():
         for node in label_to_nodes.get(label, []):
             if parent_label is None:
-                assert "parentId" not in node, f"Node '{label}' should not have parent but has {node.get('parentId')}"
+                assert (
+                    "parentId" not in node
+                ), f"Node '{label}' should not have parent but has {node.get('parentId')}"
             else:
                 # Find the expected parent node id by label
                 parent_nodes = label_to_nodes.get(parent_label, [])
-                assert parent_nodes, f"Expected parent node with label '{parent_label}' not found"
+                assert (
+                    parent_nodes
+                ), f"Expected parent node with label '{parent_label}' not found"
                 parent_ids = {pn["id"] for pn in parent_nodes}
                 assert (
                     node.get("parentId") in parent_ids
@@ -564,21 +660,53 @@ def main() -> None:
     label_map = {n["id"]: n["data"]["label"] for n in result["nodes"]}
 
     def edge_tuple(e):
-        return (label_map.get(e["source"], e["source"]), label_map.get(e["target"], e["target"]), e.get("label", None))
+        return (
+            label_map.get(e["source"], e["source"]),
+            label_map.get(e["target"], e["target"]),
+            e.get("label", None),
+        )
 
     actual_edges = set(edge_tuple(e) for e in result["edges"])
     expected_edges = set(
         [
             ("input:", "while True", None),
-            ("now = datetime.now()", "target_time = now.replace(hour=9, minute=0, second=0, microsecond=0)", None),
-            ("target_time = now.replace(hour=9, minute=0, second=0, microsecond=0)", "now >= target_time", None),
-            ("now >= target_time", "pokemon = fetch_random_pokemon()", "if now >= target_time"),
-            ("now >= target_time", "sleep_secs = (target_time - now).total_seconds()", "else"),
+            (
+                "now = datetime.now()",
+                "target_time = now.replace(hour=9, minute=0, second=0, microsecond=0)",
+                None,
+            ),
+            (
+                "target_time = now.replace(hour=9, minute=0, second=0, microsecond=0)",
+                "now >= target_time",
+                None,
+            ),
+            (
+                "now >= target_time",
+                "pokemon = fetch_random_pokemon()",
+                "if now >= target_time",
+            ),
+            (
+                "now >= target_time",
+                "sleep_secs = (target_time - now).total_seconds()",
+                "else",
+            ),
             ("pokemon = fetch_random_pokemon()", "print(pokemon)", None),
             ("print(pokemon)", "next_run = target_time + timedelta(days=1)", None),
-            ("next_run = target_time + timedelta(days=1)", "sleep_secs = (next_run - now).total_seconds()", None),
-            ("sleep_secs = (next_run - now).total_seconds()", "time.sleep(sleep_secs)", None),
-            ("sleep_secs = (target_time - now).total_seconds()", "time.sleep(sleep_secs)", None),
+            (
+                "next_run = target_time + timedelta(days=1)",
+                "sleep_secs = (next_run - now).total_seconds()",
+                None,
+            ),
+            (
+                "sleep_secs = (next_run - now).total_seconds()",
+                "time.sleep(sleep_secs)",
+                None,
+            ),
+            (
+                "sleep_secs = (target_time - now).total_seconds()",
+                "time.sleep(sleep_secs)",
+                None,
+            ),
         ]
     )
     assert expected_edges == actual_edges
@@ -631,10 +759,16 @@ def main() -> str:
                 "operation",
                 "header = ['Title', 'Image URL', 'Price', 'Description', 'Hype Level', 'Resale Value', 'Link']",
             ),
-            ("subroutine", "append_row_to_sheet(spreadsheet_id, 'Sheet1!A1:G1', header)"),
+            (
+                "subroutine",
+                "append_row_to_sheet(spreadsheet_id, 'Sheet1!A1:G1', header)",
+            ),
             ("operation", "html = fetch_nike_upcoming_drops()"),
             ("operation", "products = parse_html(html)"),
-            ("operation", "existing = get_existing_links(spreadsheet_id, 'Sheet1!G2:G')"),
+            (
+                "operation",
+                "existing = get_existing_links(spreadsheet_id, 'Sheet1!G2:G')",
+            ),
             ("loop", "for p in products"),
             ("condition", "p['Link'] not in existing"),
             ("operation", "enriched = analyze_product(p)"),
@@ -686,7 +820,11 @@ def main() -> str:
     label_map = {n["id"]: n["data"]["label"] for n in result["nodes"]}
 
     def edge_tuple(e):
-        return (label_map.get(e["source"], e["source"]), label_map.get(e["target"], e["target"]), e.get("label", None))
+        return (
+            label_map.get(e["source"], e["source"]),
+            label_map.get(e["target"], e["target"]),
+            e.get("label", None),
+        )
 
     actual_edges = set(edge_tuple(e) for e in result["edges"])
     expected_edges = set(
@@ -702,11 +840,27 @@ def main() -> str:
                 "append_row_to_sheet(spreadsheet_id, 'Sheet1!A1:G1', header)",
                 None,
             ),
-            ("append_row_to_sheet(spreadsheet_id, 'Sheet1!A1:G1', header)", "html = fetch_nike_upcoming_drops()", None),
+            (
+                "append_row_to_sheet(spreadsheet_id, 'Sheet1!A1:G1', header)",
+                "html = fetch_nike_upcoming_drops()",
+                None,
+            ),
             ("html = fetch_nike_upcoming_drops()", "products = parse_html(html)", None),
-            ("products = parse_html(html)", "existing = get_existing_links(spreadsheet_id, 'Sheet1!G2:G')", None),
-            ("existing = get_existing_links(spreadsheet_id, 'Sheet1!G2:G')", "for p in products", None),
-            ("p['Link'] not in existing", "enriched = analyze_product(p)", "if p['Link'] not in existing"),
+            (
+                "products = parse_html(html)",
+                "existing = get_existing_links(spreadsheet_id, 'Sheet1!G2:G')",
+                None,
+            ),
+            (
+                "existing = get_existing_links(spreadsheet_id, 'Sheet1!G2:G')",
+                "for p in products",
+                None,
+            ),
+            (
+                "p['Link'] not in existing",
+                "enriched = analyze_product(p)",
+                "if p['Link'] not in existing",
+            ),
             (
                 "enriched = analyze_product(p)",
                 "row = [enriched['Title'], enriched['Image URL'], enriched['Price'], enriched['Description'], enriched['Hype Level'], enriched['Resale Value'], enriched['Link']]",
@@ -783,7 +937,9 @@ def main() -> list[str]:
             else:
                 # Find the expected parent node id by label
                 parent_nodes = label_to_nodes.get(parent_label, [])
-                assert parent_nodes, f"Expected parent node with label '{parent_label}' not found"
+                assert (
+                    parent_nodes
+                ), f"Expected parent node with label '{parent_label}' not found"
                 parent_ids = {pn["id"] for pn in parent_nodes}
                 assert (
                     node.get("parentId") in parent_ids
@@ -793,7 +949,11 @@ def main() -> list[str]:
     label_map = {n["id"]: n["data"]["label"] for n in result["nodes"]}
 
     def edge_tuple(e):
-        return (label_map.get(e["source"], e["source"]), label_map.get(e["target"], e["target"]), e.get("label", None))
+        return (
+            label_map.get(e["source"], e["source"]),
+            label_map.get(e["target"], e["target"]),
+            e.get("label", None),
+        )
 
     actual_edges = set(edge_tuple(e) for e in result["edges"])
     expected_edges = set(
@@ -801,8 +961,16 @@ def main() -> list[str]:
             ("results = []", "for customer_id in customer_ids", None),
             ("customer_ids = get_customer_ids()", "results = []", None),
             ("input:", "customer_ids = get_customer_ids()", None),
-            ("for customer_id in customer_ids", "for customer_id in customer_ids", None),
-            ("customer_id != 'a'", "results.append(process_customer(customer_id))", "if customer_id != 'a'"),
+            (
+                "for customer_id in customer_ids",
+                "for customer_id in customer_ids",
+                None,
+            ),
+            (
+                "customer_id != 'a'",
+                "results.append(process_customer(customer_id))",
+                "if customer_id != 'a'",
+            ),
             ("customer_id != 'a'", "print('do not process customer a')", "else"),
             ("for customer_id in customer_ids", "output:  results", None),
         ]
@@ -875,11 +1043,15 @@ def main() -> list[str]:
     for label, parent_label in expected_parents.items():
         for node in label_to_nodes.get(label, []):
             if parent_label is None:
-                assert "parentId" not in node, f"Node '{label}' should not have parent but has {node.get('parentId')}"
+                assert (
+                    "parentId" not in node
+                ), f"Node '{label}' should not have parent but has {node.get('parentId')}"
             else:
                 # Find the expected parent node id by label
                 parent_nodes = label_to_nodes.get(parent_label, [])
-                assert parent_nodes, f"Expected parent node with label '{parent_label}' not found"
+                assert (
+                    parent_nodes
+                ), f"Expected parent node with label '{parent_label}' not found"
                 parent_ids = {pn["id"] for pn in parent_nodes}
                 assert (
                     node.get("parentId") in parent_ids
@@ -889,7 +1061,11 @@ def main() -> list[str]:
     label_map = {n["id"]: n["data"]["label"] for n in result["nodes"]}
 
     def edge_tuple(e):
-        return (label_map.get(e["source"], e["source"]), label_map.get(e["target"], e["target"]), e.get("label", None))
+        return (
+            label_map.get(e["source"], e["source"]),
+            label_map.get(e["target"], e["target"]),
+            e.get("label", None),
+        )
 
     actual_edges = set(edge_tuple(e) for e in result["edges"])
     expected_edges = set(
@@ -897,7 +1073,11 @@ def main() -> list[str]:
             ("input:", "customer_ids = get_customer_ids()", None),
             ("customer_ids = get_customer_ids()", "results = []", None),
             ("results = []", "len(customer_ids) > 0", None),
-            ("len(customer_ids) > 0", "for customer_id in customer_ids", "if len(customer_ids) > 0"),
+            (
+                "len(customer_ids) > 0",
+                "for customer_id in customer_ids",
+                "if len(customer_ids) > 0",
+            ),
             ("len(customer_ids) > 0", "for customer_id in customer_ids", "else"),
             ("for customer_id in customer_ids", "notify_customer('')", None),
             ("for customer_id in customer_ids", "results.append('')", None),
@@ -910,7 +1090,12 @@ def main() -> list[str]:
 
 
 def test_export_from_code_depth_limit_enforcement():
-    """Test depth limit enforcement for complex nested structures from example.py"""
+    """Test multi-level nesting support (formerly depth limit enforcement test).
+
+    Now that we've removed the artificial depth <= 1 constraint, this test verifies
+    that nested structures (loop -> condition -> loop) work correctly with proper
+    parent-child relationships at multiple levels.
+    """
     code = """
 @flow
 def main() -> list[str]:
@@ -938,7 +1123,8 @@ def main() -> list[str]:
             ("operation", "results = []"),
             ("loop", "for customer_id in customer_ids"),
             ("condition", "len(customer_ids) > 0"),
-            ("loop", "for option in options \u2192 assign_option_to_customer(option, customer_id)"),
+            ("loop", "for option in options"),
+            ("subroutine", "assign_option_to_customer(option, customer_id)"),
             ("subroutine", "results.append(process_customer(customer_id))"),
             ("subroutine", "print('no need for assigning since there is no customer')"),
             ("end", "output:  results"),
@@ -955,7 +1141,8 @@ def main() -> list[str]:
         "results = []": None,
         "for customer_id in customer_ids": None,
         "len(customer_ids) > 0": "for customer_id in customer_ids",
-        "for option in options \u2192 assign_option_to_customer(option, customer_id)": "for customer_id in customer_ids",
+        "for option in options": "for customer_id in customer_ids",
+        "assign_option_to_customer(option, customer_id)": "for option in options",
         "results.append(process_customer(customer_id))": "for customer_id in customer_ids",
         "print('no need for assigning since there is no customer')": "for customer_id in customer_ids",
         "output:  results": None,
@@ -970,30 +1157,32 @@ def main() -> list[str]:
     for label, parent_label in expected_parents.items():
         for node in label_to_nodes.get(label, []):
             if parent_label is None:
-                assert "parentId" not in node, f"Node '{label}' should not have parent but has {node.get('parentId')}"
+                assert (
+                    "parentId" not in node
+                ), f"Node '{label}' should not have parent but has {node.get('parentId')}"
             else:
                 # Find the expected parent node id by label
                 parent_nodes = label_to_nodes.get(parent_label, [])
-                assert parent_nodes, f"Expected parent node with label '{parent_label}' not found"
+                assert (
+                    parent_nodes
+                ), f"Expected parent node with label '{parent_label}' not found"
                 parent_ids = {pn["id"] for pn in parent_nodes}
                 assert (
                     node.get("parentId") in parent_ids
                 ), f"Node '{label}' should have parentId in {parent_ids}, got {node.get('parentId')}"
 
-    # Verify depth <= 1: check that no node has a parent that itself has a parent
-    for node in result["nodes"]:
-        if "parentId" in node:
-            parent_node = next((n for n in result["nodes"] if n["id"] == node["parentId"]), None)
-            assert parent_node is not None, f"Parent node {node['parentId']} not found for {node['id']}"
-            assert (
-                "parentId" not in parent_node
-            ), f"Depth > 1 violation: node {node['id']} has parent {parent_node['id']} which itself has parent {parent_node.get('parentId')}"
+    # NOTE: We NO LONGER enforce depth <= 1 constraint!
+    # Multi-level nesting is now allowed and encouraged for accurate representation
 
     # Expected edges (source_label, target_label, edge_label)
     label_map = {n["id"]: n["data"]["label"] for n in result["nodes"]}
 
     def edge_tuple(e):
-        return (label_map.get(e["source"], e["source"]), label_map.get(e["target"], e["target"]), e.get("label", None))
+        return (
+            label_map.get(e["source"], e["source"]),
+            label_map.get(e["target"], e["target"]),
+            e.get("label", None),
+        )
 
     actual_edges = set(edge_tuple(e) for e in result["edges"])
     expected_edges = set(
@@ -1004,15 +1193,19 @@ def main() -> list[str]:
             ("results = []", "for customer_id in customer_ids", None),
             (
                 "len(customer_ids) > 0",
-                "for option in options \u2192 assign_option_to_customer(option, customer_id)",
+                "for option in options",
                 "if len(customer_ids) > 0",
             ),
             (
-                "for option in options \u2192 assign_option_to_customer(option, customer_id)",
+                "for option in options",
                 "results.append(process_customer(customer_id))",
                 None,
             ),
-            ("len(customer_ids) > 0", "print('no need for assigning since there is no customer')", "else"),
+            (
+                "len(customer_ids) > 0",
+                "print('no need for assigning since there is no customer')",
+                "else",
+            ),
             ("for customer_id in customer_ids", "output:  results", None),
         ]
     )
@@ -1047,7 +1240,10 @@ def main(
     # Expected nodes (type, label)
     expected_nodes = set(
         [
-            ("start", "input: stripe_api_key, hubspot_api_key, openai_api_key, slack_webhook_url, slack_channel"),
+            (
+                "start",
+                "input: stripe_api_key, hubspot_api_key, openai_api_key, slack_webhook_url, slack_channel",
+            ),
             ("operation", "customers = fetch_new_stripe_customers(stripe_api_key)"),
             ("operation", "summaries: list[str] = []"),
             ("loop", "for customer in customers"),
@@ -1056,7 +1252,10 @@ def main(
             ("operation", "domain = email.split('@')[1] if '@' in email else ''"),
             ("operation", "metadata = fetch_company_metadata(domain)"),
             ("operation", "summary = summarize_company(metadata, openai_api_key)"),
-            ("subroutine", "send_slack_message(summary, slack_webhook_url, slack_channel)"),
+            (
+                "subroutine",
+                "send_slack_message(summary, slack_webhook_url, slack_channel)",
+            ),
             ("subroutine", "summaries.append(summary)"),
             ("end", "output:  summaries"),
         ]
@@ -1089,11 +1288,15 @@ def main(
     for label, parent_label in expected_parents.items():
         for node in label_to_nodes.get(label, []):
             if parent_label is None:
-                assert "parentId" not in node, f"Node '{label}' should not have parent but has {node.get('parentId')}"
+                assert (
+                    "parentId" not in node
+                ), f"Node '{label}' should not have parent but has {node.get('parentId')}"
             else:
                 # Find the expected parent node id by label
                 parent_nodes = label_to_nodes.get(parent_label, [])
-                assert parent_nodes, f"Expected parent node with label '{parent_label}' not found"
+                assert (
+                    parent_nodes
+                ), f"Expected parent node with label '{parent_label}' not found"
                 parent_ids = {pn["id"] for pn in parent_nodes}
                 assert (
                     node.get("parentId") in parent_ids
@@ -1103,7 +1306,11 @@ def main(
     label_map = {n["id"]: n["data"]["label"] for n in result["nodes"]}
 
     def edge_tuple(e):
-        return (label_map.get(e["source"], e["source"]), label_map.get(e["target"], e["target"]), e.get("label", None))
+        return (
+            label_map.get(e["source"], e["source"]),
+            label_map.get(e["target"], e["target"]),
+            e.get("label", None),
+        )
 
     actual_edges = set(edge_tuple(e) for e in result["edges"])
     expected_edges = set(
@@ -1113,12 +1320,28 @@ def main(
                 "customers = fetch_new_stripe_customers(stripe_api_key)",
                 None,
             ),
-            ("customers = fetch_new_stripe_customers(stripe_api_key)", "summaries: list[str] = []", None),
+            (
+                "customers = fetch_new_stripe_customers(stripe_api_key)",
+                "summaries: list[str] = []",
+                None,
+            ),
             ("summaries: list[str] = []", "for customer in customers", None),
             ("for customer in customers", "output:  summaries", None),
-            ("create_hubspot_contact(customer, hubspot_api_key)", "email = customer.get('email', '')", None),
-            ("email = customer.get('email', '')", "domain = email.split('@')[1] if '@' in email else ''", None),
-            ("domain = email.split('@')[1] if '@' in email else ''", "metadata = fetch_company_metadata(domain)", None),
+            (
+                "create_hubspot_contact(customer, hubspot_api_key)",
+                "email = customer.get('email', '')",
+                None,
+            ),
+            (
+                "email = customer.get('email', '')",
+                "domain = email.split('@')[1] if '@' in email else ''",
+                None,
+            ),
+            (
+                "domain = email.split('@')[1] if '@' in email else ''",
+                "metadata = fetch_company_metadata(domain)",
+                None,
+            ),
             (
                 "metadata = fetch_company_metadata(domain)",
                 "summary = summarize_company(metadata, openai_api_key)",
@@ -1129,7 +1352,11 @@ def main(
                 "send_slack_message(summary, slack_webhook_url, slack_channel)",
                 None,
             ),
-            ("send_slack_message(summary, slack_webhook_url, slack_channel)", "summaries.append(summary)", None),
+            (
+                "send_slack_message(summary, slack_webhook_url, slack_channel)",
+                "summaries.append(summary)",
+                None,
+            ),
         ]
     )
     assert expected_edges == actual_edges
@@ -1192,11 +1419,15 @@ def main(email: str, phone_number: str) -> list[str]:
     for label, parent_label in expected_parents.items():
         for node in label_to_nodes.get(label, []):
             if parent_label is None:
-                assert "parentId" not in node, f"Node '{label}' should not have parent but has {node.get('parentId')}"
+                assert (
+                    "parentId" not in node
+                ), f"Node '{label}' should not have parent but has {node.get('parentId')}"
             else:
                 # Find the expected parent node id by label
                 parent_nodes = label_to_nodes.get(parent_label, [])
-                assert parent_nodes, f"Expected parent node with label '{parent_label}' not found"
+                assert (
+                    parent_nodes
+                ), f"Expected parent node with label '{parent_label}' not found"
                 parent_ids = {pn["id"] for pn in parent_nodes}
                 assert (
                     node.get("parentId") in parent_ids
@@ -1206,7 +1437,11 @@ def main(email: str, phone_number: str) -> list[str]:
     label_map = {n["id"]: n["data"]["label"] for n in result["nodes"]}
 
     def edge_tuple(e):
-        return (label_map.get(e["source"], e["source"]), label_map.get(e["target"], e["target"]), e.get("label", None))
+        return (
+            label_map.get(e["source"], e["source"]),
+            label_map.get(e["target"], e["target"]),
+            e.get("label", None),
+        )
 
     actual_edges = set(edge_tuple(e) for e in result["edges"])
     expected_edges = set(
@@ -1214,11 +1449,27 @@ def main(email: str, phone_number: str) -> list[str]:
             ("input: email, phone_number", "customer_ids = get_customer_ids()", None),
             ("customer_ids = get_customer_ids()", "results = []", None),
             ("results = []", "len(customer_ids) > 0", None),
-            ("len(customer_ids) > 0", "for customer_id in customer_ids", "if len(customer_ids) > 0"),
-            ("len(customer_ids) > 0", "print('no need for assigning since there is no customer')", "else"),
-            ("results.append(process_customer(customer_id))", "notify_customer(customer_id)", None),
+            (
+                "len(customer_ids) > 0",
+                "for customer_id in customer_ids",
+                "if len(customer_ids) > 0",
+            ),
+            (
+                "len(customer_ids) > 0",
+                "print('no need for assigning since there is no customer')",
+                "else",
+            ),
+            (
+                "results.append(process_customer(customer_id))",
+                "notify_customer(customer_id)",
+                None,
+            ),
             ("for customer_id in customer_ids", "output:  results", None),
-            ("print('no need for assigning since there is no customer')", "output:  results", None),
+            (
+                "print('no need for assigning since there is no customer')",
+                "output:  results",
+                None,
+            ),
         ]
     )
     assert expected_edges == actual_edges
@@ -1229,7 +1480,12 @@ def main(email: str, phone_number: str) -> list[str]:
 
     # Verify the get_customer_ids operation has correct task structure
     get_customer_ids_node = next(
-        (n for n in result["nodes"] if n["data"]["label"] == "customer_ids = get_customer_ids()"), None
+        (
+            n
+            for n in result["nodes"]
+            if n["data"]["label"] == "customer_ids = get_customer_ids()"
+        ),
+        None,
     )
     assert get_customer_ids_node is not None
     assert "tasks" in get_customer_ids_node["data"]
@@ -1239,50 +1495,78 @@ def main(email: str, phone_number: str) -> list[str]:
     assert task["args"] == []
 
     # Verify the len function call in condition has correct argument structure
-    len_condition_node = next((n for n in result["nodes"] if n["data"]["label"] == "len(customer_ids) > 0"), None)
+    len_condition_node = next(
+        (n for n in result["nodes"] if n["data"]["label"] == "len(customer_ids) > 0"),
+        None,
+    )
     assert len_condition_node is not None
     assert "tasks" in len_condition_node["data"]
-    len_task = next((t for t in len_condition_node["data"]["tasks"] if t["name"] == "len"), None)
+    len_task = next(
+        (t for t in len_condition_node["data"]["tasks"] if t["name"] == "len"), None
+    )
     assert len_task is not None
     assert len(len_task["args"]) == 1
     assert len_task["args"][0]["name"] == "customer_ids"
     assert len_task["args"][0]["type"] == "variable"
 
     # Verify the process_customer call has correct argument structure
-    process_node = next((n for n in result["nodes"] if "process_customer" in n["data"]["label"]), None)
+    process_node = next(
+        (n for n in result["nodes"] if "process_customer" in n["data"]["label"]), None
+    )
     assert process_node is not None
     assert "tasks" in process_node["data"]
-    process_task = next((t for t in process_node["data"]["tasks"] if t["name"] == "process_customer"), None)
+    process_task = next(
+        (t for t in process_node["data"]["tasks"] if t["name"] == "process_customer"),
+        None,
+    )
     assert process_task is not None
     assert len(process_task["args"]) == 1
     assert process_task["args"][0]["name"] == "customer_id"
     assert process_task["args"][0]["type"] == "variable"
 
     # Verify the append method call with nested function call
-    append_node = next((n for n in result["nodes"] if "results.append" in n["data"]["label"]), None)
+    append_node = next(
+        (n for n in result["nodes"] if "results.append" in n["data"]["label"]), None
+    )
     assert append_node is not None
     assert "tasks" in append_node["data"]
-    append_task = next((t for t in append_node["data"]["tasks"] if t["name"] == "append"), None)
+    append_task = next(
+        (t for t in append_node["data"]["tasks"] if t["name"] == "append"), None
+    )
     assert append_task is not None
     assert len(append_task["args"]) == 1
     assert append_task["args"][0]["name"] == "function_call"
     assert append_task["args"][0]["type"] == "call"
 
     # Verify the notify_customer call has correct argument structure
-    notify_node = next((n for n in result["nodes"] if n["data"]["label"] == "notify_customer(customer_id)"), None)
+    notify_node = next(
+        (
+            n
+            for n in result["nodes"]
+            if n["data"]["label"] == "notify_customer(customer_id)"
+        ),
+        None,
+    )
     assert notify_node is not None
     assert "tasks" in notify_node["data"]
-    notify_task = next((t for t in notify_node["data"]["tasks"] if t["name"] == "notify_customer"), None)
+    notify_task = next(
+        (t for t in notify_node["data"]["tasks"] if t["name"] == "notify_customer"),
+        None,
+    )
     assert notify_task is not None
     assert len(notify_task["args"]) == 1
     assert notify_task["args"][0]["name"] == "customer_id"
     assert notify_task["args"][0]["type"] == "variable"
 
     # Verify the print statement has correct string argument
-    print_node = next((n for n in result["nodes"] if "print(" in n["data"]["label"]), None)
+    print_node = next(
+        (n for n in result["nodes"] if "print(" in n["data"]["label"]), None
+    )
     assert print_node is not None
     assert "tasks" in print_node["data"]
-    print_task = next((t for t in print_node["data"]["tasks"] if t["name"] == "print"), None)
+    print_task = next(
+        (t for t in print_node["data"]["tasks"] if t["name"] == "print"), None
+    )
     assert print_task is not None
     assert len(print_task["args"]) == 1
     assert print_task["args"][0]["type"] == "string"
@@ -1291,18 +1575,32 @@ def main(email: str, phone_number: str) -> list[str]:
     # Verify variable assignments
     # Check customer_ids assignment
     get_customer_ids_node = next(
-        (n for n in result["nodes"] if n["data"]["label"] == "customer_ids = get_customer_ids()"), None
+        (
+            n
+            for n in result["nodes"]
+            if n["data"]["label"] == "customer_ids = get_customer_ids()"
+        ),
+        None,
     )
     assert "vars" in get_customer_ids_node["data"]
     assert "customer_ids" in get_customer_ids_node["data"]["vars"]
 
     # Check results assignment
-    results_node = next((n for n in result["nodes"] if n["data"]["label"] == "results = []"), None)
+    results_node = next(
+        (n for n in result["nodes"] if n["data"]["label"] == "results = []"), None
+    )
     assert "vars" in results_node["data"]
     assert "results" in results_node["data"]["vars"]
 
     # Check loop variable
-    loop_node = next((n for n in result["nodes"] if n["data"]["label"] == "for customer_id in customer_ids"), None)
+    loop_node = next(
+        (
+            n
+            for n in result["nodes"]
+            if n["data"]["label"] == "for customer_id in customer_ids"
+        ),
+        None,
+    )
     assert "vars" in loop_node["data"]
     assert "customer_id" in loop_node["data"]["vars"]
 
@@ -1363,11 +1661,15 @@ def main() -> None:
     for label, parent_label in expected_parents.items():
         for node in label_to_nodes.get(label, []):
             if parent_label is None:
-                assert "parentId" not in node, f"Node '{label}' should not have parent but has {node.get('parentId')}"
+                assert (
+                    "parentId" not in node
+                ), f"Node '{label}' should not have parent but has {node.get('parentId')}"
             else:
                 # Find the expected parent node id by label
                 parent_nodes = label_to_nodes.get(parent_label, [])
-                assert parent_nodes, f"Expected parent node with label '{parent_label}' not found"
+                assert (
+                    parent_nodes
+                ), f"Expected parent node with label '{parent_label}' not found"
                 parent_ids = {pn["id"] for pn in parent_nodes}
                 assert (
                     node.get("parentId") in parent_ids
@@ -1377,7 +1679,11 @@ def main() -> None:
     label_map = {n["id"]: n["data"]["label"] for n in result["nodes"]}
 
     def edge_tuple(e):
-        return (label_map.get(e["source"], e["source"]), label_map.get(e["target"], e["target"]), e.get("label", None))
+        return (
+            label_map.get(e["source"], e["source"]),
+            label_map.get(e["target"], e["target"]),
+            e.get("label", None),
+        )
 
     actual_edges = set(edge_tuple(e) for e in result["edges"])
     expected_edges = set(
@@ -1386,8 +1692,16 @@ def main() -> None:
             ("res = get_messages()", "details = []", None),
             ("details = []", "for m in res.messages", None),
             ("for m in res.messages", "summary = summarize_messages(details)", None),
-            ("summary = summarize_messages(details)", "subject = build_subject()", None),
-            ("subject = build_subject()", "email = build_email(subject, summary)", None),
+            (
+                "summary = summarize_messages(details)",
+                "subject = build_subject()",
+                None,
+            ),
+            (
+                "subject = build_subject()",
+                "email = build_email(subject, summary)",
+                None,
+            ),
             ("email = build_email(subject, summary)", "send_message(email)", None),
         ]
     )
@@ -1421,7 +1735,10 @@ def main() -> None:
                 "operation",
                 "raw = build_raw_email('user@example.com', 'Daily Email Summary (Last 24h)', summary.summary, 'recipient@example.com')",
             ),
-            ("subroutine", "tasks.google_mail.send_message(userId='me', body={'raw': raw.raw})"),
+            (
+                "subroutine",
+                "tasks.google_mail.send_message(userId='me', body={'raw': raw.raw})",
+            ),
         ]
     )
     actual_nodes = set((n["type"], n["data"]["label"]) for n in result["nodes"])
@@ -1437,15 +1754,27 @@ def main() -> None:
     label_map = {n["id"]: n["data"]["label"] for n in result["nodes"]}
 
     def edge_tuple(e):
-        return (label_map.get(e["source"], e["source"]), label_map.get(e["target"], e["target"]), e.get("label", None))
+        return (
+            label_map.get(e["source"], e["source"]),
+            label_map.get(e["target"], e["target"]),
+            e.get("label", None),
+        )
 
     actual_edges = set(edge_tuple(e) for e in result["edges"])
     expected_edges = set(
         [
             ("input:", "emails = fetch_last_24h_emails('me')", None),
             ("emails = fetch_last_24h_emails('me')", "emails.count == 0", None),
-            ("emails.count == 0", "end function return", "if emails.count == 0"),  # Yes branch goes to return
-            ("emails.count == 0", "summary = summarize_emails(emails.text)", "else"),  # No branch continues
+            (
+                "emails.count == 0",
+                "end function return",
+                "if emails.count == 0",
+            ),  # Yes branch goes to return
+            (
+                "emails.count == 0",
+                "summary = summarize_emails(emails.text)",
+                "else",
+            ),  # No branch continues
             (
                 "summary = summarize_emails(emails.text)",
                 "raw = build_raw_email('user@example.com', 'Daily Email Summary (Last 24h)', summary.summary, 'recipient@example.com')",
@@ -1465,7 +1794,12 @@ def main() -> None:
 
     # Check fetch_last_24h_emails task
     fetch_node = next(
-        (n for n in operation_nodes if n["data"]["label"] == "emails = fetch_last_24h_emails('me')"), None
+        (
+            n
+            for n in operation_nodes
+            if n["data"]["label"] == "emails = fetch_last_24h_emails('me')"
+        ),
+        None,
     )
     assert fetch_node is not None
     assert "tasks" in fetch_node["data"]
@@ -1475,7 +1809,12 @@ def main() -> None:
 
     # Check summarize_emails task
     summarize_node = next(
-        (n for n in operation_nodes if n["data"]["label"] == "summary = summarize_emails(emails.text)"), None
+        (
+            n
+            for n in operation_nodes
+            if n["data"]["label"] == "summary = summarize_emails(emails.text)"
+        ),
+        None,
     )
     assert summarize_node is not None
     assert "tasks" in summarize_node["data"]
@@ -1484,7 +1823,9 @@ def main() -> None:
     assert summarize_node["data"]["tasks"][0]["args"][0]["type"] == "attribute"
 
     # Check build_raw_email task
-    build_node = next((n for n in operation_nodes if "build_raw_email" in n["data"]["label"]), None)
+    build_node = next(
+        (n for n in operation_nodes if "build_raw_email" in n["data"]["label"]), None
+    )
     assert build_node is not None
     assert "tasks" in build_node["data"]
     assert len(build_node["data"]["tasks"]) == 1
@@ -1493,7 +1834,9 @@ def main() -> None:
 
     # Check subroutine node
     subroutine_nodes = [n for n in result["nodes"] if n["type"] == "subroutine"]
-    send_node = next((n for n in subroutine_nodes if "send_message" in n["data"]["label"]), None)
+    send_node = next(
+        (n for n in subroutine_nodes if "send_message" in n["data"]["label"]), None
+    )
     assert send_node is not None
     assert "tasks" in send_node["data"]
     assert send_node["data"]["tasks"][0]["name"] == "send_message"
@@ -1521,7 +1864,10 @@ def main(event) -> None:
     expected_nodes = set(
         [
             ("start", "input: event"),
-            ("operation", "msgs = list_messages(userId='me', q='newer_than:1d', maxResults=100)"),
+            (
+                "operation",
+                "msgs = list_messages(userId='me', q='newer_than:1d', maxResults=100)",
+            ),
             ("loop", "for m in msgs.messages"),
             ("operation", "gm = get_message(userId='me', id=m.id)"),
             ("condition", "gm.snippet"),
@@ -1531,7 +1877,10 @@ def main(event) -> None:
                 "ai = create_chat_completion(model='gpt-4.1-mini', messages=[{'role': 'system', 'content': 'Write a summary'}, {'role': 'user', 'content': corpus}], temperature=0.2)",
             ),
             ("condition", "msgs.resultSizeEstimate > 5"),
-            ("subroutine", "send_message(userId='me', body={'raw': ai.choices[0].message.content})"),
+            (
+                "subroutine",
+                "send_message(userId='me', body={'raw': ai.choices[0].message.content})",
+            ),
         ]
     )
     actual_nodes = set((n["type"], n["data"]["label"]) for n in result["nodes"])
@@ -1540,9 +1889,16 @@ def main(event) -> None:
     # Critical test: The condition "msgs.resultSizeEstimate > 5" should NOT have the loop as parent
     # This is the bug we're fixing
     result_size_condition = next(
-        (n for n in result["nodes"] if n["data"]["label"] == "msgs.resultSizeEstimate > 5"), None
+        (
+            n
+            for n in result["nodes"]
+            if n["data"]["label"] == "msgs.resultSizeEstimate > 5"
+        ),
+        None,
     )
-    assert result_size_condition is not None, "Could not find msgs.resultSizeEstimate > 5 condition"
+    assert (
+        result_size_condition is not None
+    ), "Could not find msgs.resultSizeEstimate > 5 condition"
     assert (
         "parentId" not in result_size_condition
     ), f"Condition 'msgs.resultSizeEstimate > 5' should not have a parent, but has parentId: {result_size_condition.get('parentId')}"
@@ -1582,13 +1938,25 @@ def main(event) -> None:
     label_map = {n["id"]: n["data"]["label"] for n in result["nodes"]}
 
     def edge_tuple(e):
-        return (label_map.get(e["source"], e["source"]), label_map.get(e["target"], e["target"]), e.get("label", None))
+        return (
+            label_map.get(e["source"], e["source"]),
+            label_map.get(e["target"], e["target"]),
+            e.get("label", None),
+        )
 
     actual_edges = set(edge_tuple(e) for e in result["edges"])
     expected_edges = set(
         [
-            ("input: event", "msgs = list_messages(userId='me', q='newer_than:1d', maxResults=100)", None),
-            ("msgs = list_messages(userId='me', q='newer_than:1d', maxResults=100)", "for m in msgs.messages", None),
+            (
+                "input: event",
+                "msgs = list_messages(userId='me', q='newer_than:1d', maxResults=100)",
+                None,
+            ),
+            (
+                "msgs = list_messages(userId='me', q='newer_than:1d', maxResults=100)",
+                "for m in msgs.messages",
+                None,
+            ),
             (
                 "for m in msgs.messages",
                 "ai = create_chat_completion(model='gpt-4.1-mini', messages=[{'role': 'system', 'content': 'Write a summary'}, {'role': 'user', 'content': corpus}], temperature=0.2)",
@@ -1673,11 +2041,15 @@ def main(event) -> None:
     for label, parent_label in expected_parents.items():
         for node in label_to_nodes.get(label, []):
             if parent_label is None:
-                assert "parentId" not in node, f"Node '{label}' should not have parent but has {node.get('parentId')}"
+                assert (
+                    "parentId" not in node
+                ), f"Node '{label}' should not have parent but has {node.get('parentId')}"
             else:
                 # Find the expected parent node id by label
                 parent_nodes = label_to_nodes.get(parent_label, [])
-                assert parent_nodes, f"Expected parent node with label '{parent_label}' not found"
+                assert (
+                    parent_nodes
+                ), f"Expected parent node with label '{parent_label}' not found"
                 parent_ids = {pn["id"] for pn in parent_nodes}
                 assert (
                     node.get("parentId") in parent_ids
@@ -1687,20 +2059,36 @@ def main(event) -> None:
     label_map = {n["id"]: n["data"]["label"] for n in result["nodes"]}
 
     def edge_tuple(e):
-        return (label_map.get(e["source"], e["source"]), label_map.get(e["target"], e["target"]), e.get("label", None))
+        return (
+            label_map.get(e["source"], e["source"]),
+            label_map.get(e["target"], e["target"]),
+            e.get("label", None),
+        )
 
     actual_edges = set(edge_tuple(e) for e in result["edges"])
     expected_edges = set(
         [
             ("input: event", "lm = list_messages(userId='me', maxResults=100)", None),
-            ("lm = list_messages(userId='me', maxResults=100)", "count = len(lm.messages)", None),
+            (
+                "lm = list_messages(userId='me', maxResults=100)",
+                "count = len(lm.messages)",
+                None,
+            ),
             ("count = len(lm.messages)", "count < 5", None),
             ("count < 5", "raw = 'raw'", "if count < 5"),
             ("raw = 'raw'", "send_message(userId='me', body={'raw': raw})", None),
-            ("send_message(userId='me', body={'raw': raw})", "print(count, 'email')", None),
+            (
+                "send_message(userId='me', body={'raw': raw})",
+                "print(count, 'email')",
+                None,
+            ),
             ("print(count, 'email')", "end function return", None),
             ("count < 5", "for m in lm.messages", "else"),
-            ("for m in lm.messages", "comp = create_chat_completion(model='gpt-4.1-mini')", None),
+            (
+                "for m in lm.messages",
+                "comp = create_chat_completion(model='gpt-4.1-mini')",
+                None,
+            ),
         ]
     )
     assert expected_edges == actual_edges
@@ -1731,8 +2119,8 @@ def main() -> list[str]:
             ("loop", "for item in items"),
             ("subroutine", "process_item(item)"),
             ("condition", "item.has_children"),
-            ("loop", "for child in item.children"),
-            ("subroutine", "process_child(child)"),
+            ("loop", "for child in item.children"),  # Merged at AST level
+            ("subroutine", "process_child(child)"),  # Separate subroutine node
             ("subroutine", "finalize_item(item)"),
             ("end", "output:  results"),
         ]
@@ -1740,16 +2128,17 @@ def main() -> list[str]:
     actual_nodes = set((n["type"], n["data"]["label"]) for n in result["nodes"])
     assert expected_nodes == actual_nodes
 
-    # Expected parent relationships (label -> parent_label or None)
+    # Expected parent relationships with multi-level nesting
     expected_parents = {
         "input:": None,
         "results = []": None,
-        "for item in items": None,  # Outer loop should NOT have a parent
-        "process_item(item)": "for item in items",
-        "item.has_children": "for item in items",
-        "for child in item.children": "for item in items",  # Nested loop should have outer loop as parent
-        "process_child(child)": "for item in items",
-        "finalize_item(item)": "for item in items",
+        "for item in items": None,  # Outer loop has no parent
+        "process_item(item)": "for item in items",  # Inside outer loop
+        "item.has_children": "for item in items",  # Condition inside outer loop
+        "for child in item.children": "for item in items",
+        "process_child(child)": "for child in item.children",  # Inner loop has outer loop as parent
+        "process_child(child)": "for child in item.children",  # Inside inner loop
+        "finalize_item(item)": "for item in items",  # Inside outer loop
         "output:  results": None,
     }
 
@@ -1762,11 +2151,15 @@ def main() -> list[str]:
     for label, parent_label in expected_parents.items():
         for node in label_to_nodes.get(label, []):
             if parent_label is None:
-                assert "parentId" not in node, f"Node '{label}' should not have parent but has {node.get('parentId')}"
+                assert (
+                    "parentId" not in node
+                ), f"Node '{label}' should not have parent but has {node.get('parentId')}"
             else:
                 # Find the expected parent node id by label
                 parent_nodes = label_to_nodes.get(parent_label, [])
-                assert parent_nodes, f"Expected parent node with label '{parent_label}' not found"
+                assert (
+                    parent_nodes
+                ), f"Expected parent node with label '{parent_label}' not found"
                 parent_ids = {pn["id"] for pn in parent_nodes}
                 assert (
                     node.get("parentId") in parent_ids
@@ -1776,7 +2169,11 @@ def main() -> list[str]:
     label_map = {n["id"]: n["data"]["label"] for n in result["nodes"]}
 
     def edge_tuple(e):
-        return (label_map.get(e["source"], e["source"]), label_map.get(e["target"], e["target"]), e.get("label", None))
+        return (
+            label_map.get(e["source"], e["source"]),
+            label_map.get(e["target"], e["target"]),
+            e.get("label", None),
+        )
 
     actual_edges = set(edge_tuple(e) for e in result["edges"])
     expected_edges = set(
@@ -1787,9 +2184,8 @@ def main() -> list[str]:
             ("process_item(item)", "item.has_children", None),
             ("item.has_children", "for child in item.children", "if item.has_children"),
             ("item.has_children", "finalize_item(item)", "else"),
-            ("for child in item.children", "process_child(child)", "loop"),  # Loop body entry
-            ("for child in item.children", "finalize_item(item)", None),
-            ("process_child(child)", "for child in item.children", None),  # Loop back
+            ("for child in item.children", "finalize_item(item)", None),  # Loop exit
+            # Note: process_child(child) is now a child of the loop via parentId, not edges
         ]
     )
     assert expected_edges == actual_edges
@@ -1831,11 +2227,15 @@ def main() -> list[str]:
         ]
     )
     actual_nodes = set((n["type"], n["data"]["label"]) for n in result["nodes"])
-    assert expected_nodes == actual_nodes, f"Expected {expected_nodes}, got {actual_nodes}"
+    assert (
+        expected_nodes == actual_nodes
+    ), f"Expected {expected_nodes}, got {actual_nodes}"
 
     # Verify there's only ONE condition node (not two)
     condition_nodes = [n for n in result["nodes"] if n["type"] == "condition"]
-    assert len(condition_nodes) == 1, f"Expected 1 condition node, got {len(condition_nodes)}"
+    assert (
+        len(condition_nodes) == 1
+    ), f"Expected 1 condition node, got {len(condition_nodes)}"
 
     # Expected parent relationships (label -> parent_label or None)
     expected_parents = {
@@ -1860,11 +2260,15 @@ def main() -> list[str]:
     for label, parent_label in expected_parents.items():
         for node in label_to_nodes.get(label, []):
             if parent_label is None:
-                assert "parentId" not in node, f"Node '{label}' should not have parent but has {node.get('parentId')}"
+                assert (
+                    "parentId" not in node
+                ), f"Node '{label}' should not have parent but has {node.get('parentId')}"
             else:
                 # Find the expected parent node id by label
                 parent_nodes = label_to_nodes.get(parent_label, [])
-                assert parent_nodes, f"Expected parent node with label '{parent_label}' not found"
+                assert (
+                    parent_nodes
+                ), f"Expected parent node with label '{parent_label}' not found"
                 parent_ids = {pn["id"] for pn in parent_nodes}
                 assert (
                     node.get("parentId") in parent_ids
@@ -1874,7 +2278,11 @@ def main() -> list[str]:
     label_map = {n["id"]: n["data"]["label"] for n in result["nodes"]}
 
     def edge_tuple(e):
-        return (label_map.get(e["source"], e["source"]), label_map.get(e["target"], e["target"]), e.get("label", None))
+        return (
+            label_map.get(e["source"], e["source"]),
+            label_map.get(e["target"], e["target"]),
+            e.get("label", None),
+        )
 
     actual_edges = set(edge_tuple(e) for e in result["edges"])
     expected_edges = set(
@@ -1883,7 +2291,11 @@ def main() -> list[str]:
             ("customer_ids = get_customer_ids()", "results = []", None),
             ("results = []", "len(customer_ids) > 5", None),
             # Multi-branch edges from single condition node
-            ("len(customer_ids) > 5", "for customer_id in customer_ids", "if len(customer_ids) > 5"),
+            (
+                "len(customer_ids) > 5",
+                "for customer_id in customer_ids",
+                "if len(customer_ids) > 5",
+            ),
             (
                 "len(customer_ids) > 5",
                 "results.append(process_customer(customer_ids[0]))",
@@ -1892,18 +2304,34 @@ def main() -> list[str]:
             ("len(customer_ids) > 5", "results.append('No customers found')", "else"),
             # Sequential edges after branches
             ("for customer_id in customer_ids", "notify_customers(customer_ids)", None),
-            ("results.append(process_customer(customer_ids[0]))", "notify_customers(customer_ids)", None),
-            ("results.append('No customers found')", "notify_customers(customer_ids)", None),
+            (
+                "results.append(process_customer(customer_ids[0]))",
+                "notify_customers(customer_ids)",
+                None,
+            ),
+            (
+                "results.append('No customers found')",
+                "notify_customers(customer_ids)",
+                None,
+            ),
             ("notify_customers(customer_ids)", "output:  results", None),
         ]
     )
-    assert expected_edges == actual_edges, f"Expected edges:\n{sorted(expected_edges)}\n\nGot:\n{sorted(actual_edges)}"
+    assert (
+        expected_edges == actual_edges
+    ), f"Expected edges:\n{sorted(expected_edges)}\n\nGot:\n{sorted(actual_edges)}"
 
     # Verify the multi-branch edge labels explicitly
-    condition_edges = [e for e in result["edges"] if e["source"] == condition_nodes[0]["id"]]
+    condition_edges = [
+        e for e in result["edges"] if e["source"] == condition_nodes[0]["id"]
+    ]
     edge_labels = sorted([e.get("label", "") for e in condition_edges])
-    expected_labels = sorted(["if len(customer_ids) > 5", "elif len(customer_ids) > 0", "else"])
-    assert edge_labels == expected_labels, f"Expected edge labels {expected_labels}, got {edge_labels}"
+    expected_labels = sorted(
+        ["if len(customer_ids) > 5", "elif len(customer_ids) > 0", "else"]
+    )
+    assert (
+        edge_labels == expected_labels
+    ), f"Expected edge labels {expected_labels}, got {edge_labels}"
 
 
 def test_export_from_code_if_elif_elif_else_four_branches():
@@ -1939,15 +2367,23 @@ def main() -> str:
         ]
     )
     actual_nodes = set((n["type"], n["data"]["label"]) for n in result["nodes"])
-    assert expected_nodes == actual_nodes, f"Expected {expected_nodes}, got {actual_nodes}"
+    assert (
+        expected_nodes == actual_nodes
+    ), f"Expected {expected_nodes}, got {actual_nodes}"
 
     # Verify there's only ONE condition node (not three)
     condition_nodes = [n for n in result["nodes"] if n["type"] == "condition"]
-    assert len(condition_nodes) == 1, f"Expected 1 condition node, got {len(condition_nodes)}"
+    assert (
+        len(condition_nodes) == 1
+    ), f"Expected 1 condition node, got {len(condition_nodes)}"
 
     # Verify the condition has exactly 4 outgoing edges
-    condition_edges = [e for e in result["edges"] if e["source"] == condition_nodes[0]["id"]]
-    assert len(condition_edges) == 4, f"Expected 4 edges from condition, got {len(condition_edges)}"
+    condition_edges = [
+        e for e in result["edges"] if e["source"] == condition_nodes[0]["id"]
+    ]
+    assert (
+        len(condition_edges) == 4
+    ), f"Expected 4 edges from condition, got {len(condition_edges)}"
 
     # Expected parent relationships (label -> parent_label or None)
     expected_parents = {
@@ -1970,11 +2406,15 @@ def main() -> str:
     for label, parent_label in expected_parents.items():
         for node in label_to_nodes.get(label, []):
             if parent_label is None:
-                assert "parentId" not in node, f"Node '{label}' should not have parent but has {node.get('parentId')}"
+                assert (
+                    "parentId" not in node
+                ), f"Node '{label}' should not have parent but has {node.get('parentId')}"
             else:
                 # Find the expected parent node id by label
                 parent_nodes = label_to_nodes.get(parent_label, [])
-                assert parent_nodes, f"Expected parent node with label '{parent_label}' not found"
+                assert (
+                    parent_nodes
+                ), f"Expected parent node with label '{parent_label}' not found"
                 parent_ids = {pn["id"] for pn in parent_nodes}
                 assert (
                     node.get("parentId") in parent_ids
@@ -1984,7 +2424,11 @@ def main() -> str:
     label_map = {n["id"]: n["data"]["label"] for n in result["nodes"]}
 
     def edge_tuple(e):
-        return (label_map.get(e["source"], e["source"]), label_map.get(e["target"], e["target"]), e.get("label", None))
+        return (
+            label_map.get(e["source"], e["source"]),
+            label_map.get(e["target"], e["target"]),
+            e.get("label", None),
+        )
 
     actual_edges = set(edge_tuple(e) for e in result["edges"])
     expected_edges = set(
@@ -2003,20 +2447,32 @@ def main() -> str:
             ("grade = 'F'", "output:  grade", None),
         ]
     )
-    assert expected_edges == actual_edges, f"Expected edges:\n{sorted(expected_edges)}\n\nGot:\n{sorted(actual_edges)}"
+    assert (
+        expected_edges == actual_edges
+    ), f"Expected edges:\n{sorted(expected_edges)}\n\nGot:\n{sorted(actual_edges)}"
 
     # Verify the 4 multi-branch edge labels explicitly
     edge_labels = sorted([e.get("label", "") for e in condition_edges])
-    expected_labels = sorted(["if score >= 90", "elif score >= 80", "elif score >= 70", "else"])
-    assert edge_labels == expected_labels, f"Expected edge labels {expected_labels}, got {edge_labels}"
+    expected_labels = sorted(
+        ["if score >= 90", "elif score >= 80", "elif score >= 70", "else"]
+    )
+    assert (
+        edge_labels == expected_labels
+    ), f"Expected edge labels {expected_labels}, got {edge_labels}"
 
     # Additional verification: ensure labels are in correct order conceptually
     # (if first, elif middle, else last)
-    labels_with_source_target = [(e.get("label", ""), label_map.get(e["target"], "")) for e in condition_edges]
+    labels_with_source_target = [
+        (e.get("label", ""), label_map.get(e["target"], "")) for e in condition_edges
+    ]
 
     # Check that we have exactly one 'if', two 'elif', and one 'else'
-    if_count = sum(1 for label, _ in labels_with_source_target if label.startswith("if "))
-    elif_count = sum(1 for label, _ in labels_with_source_target if label.startswith("elif "))
+    if_count = sum(
+        1 for label, _ in labels_with_source_target if label.startswith("if ")
+    )
+    elif_count = sum(
+        1 for label, _ in labels_with_source_target if label.startswith("elif ")
+    )
     else_count = sum(1 for label, _ in labels_with_source_target if label == "else")
 
     assert if_count == 1, f"Expected 1 'if' branch, got {if_count}"
@@ -2066,7 +2522,9 @@ def main() -> None:
 
     # Verify we have exactly 3 separate condition nodes
     condition_nodes = [n for n in result["nodes"] if n["type"] == "condition"]
-    assert len(condition_nodes) == 3, f"Expected 3 condition nodes, got {len(condition_nodes)}"
+    assert (
+        len(condition_nodes) == 3
+    ), f"Expected 3 condition nodes, got {len(condition_nodes)}"
 
     # Expected parent relationships (all should be top-level)
     for node in result["nodes"]:
@@ -2078,7 +2536,11 @@ def main() -> None:
     label_map = {n["id"]: n["data"]["label"] for n in result["nodes"]}
 
     def edge_tuple(e):
-        return (label_map.get(e["source"], e["source"]), label_map.get(e["target"], e["target"]), e.get("label", None))
+        return (
+            label_map.get(e["source"], e["source"]),
+            label_map.get(e["target"], e["target"]),
+            e.get("label", None),
+        )
 
     actual_edges = set(edge_tuple(e) for e in result["edges"])
 
@@ -2094,27 +2556,39 @@ def main() -> None:
             ("count > 0", "process_small(count)", "if count > 0"),
             ("count > 0", "count == 0", "else"),  # No branch goes to next if
             # Third if statement branches
-            ("process_small(count)", "count == 0", None),  # Yes branch merges to next if
+            (
+                "process_small(count)",
+                "count == 0",
+                None,
+            ),  # Yes branch merges to next if
             ("count == 0", "process_empty()", "if count == 0"),
         ]
     )
-    assert expected_edges == actual_edges, f"Expected edges:\n{sorted(expected_edges)}\n\nGot:\n{sorted(actual_edges)}"
+    assert (
+        expected_edges == actual_edges
+    ), f"Expected edges:\n{sorted(expected_edges)}\n\nGot:\n{sorted(actual_edges)}"
 
     # Verify each condition has the correct branch structure
     # First condition (count > 10) should have if/else branches
-    cond1_edges = [e for e in result["edges"] if label_map.get(e["source"]) == "count > 10"]
+    cond1_edges = [
+        e for e in result["edges"] if label_map.get(e["source"]) == "count > 10"
+    ]
     assert len(cond1_edges) == 2, "First condition should have 2 branches (if/else)"
     cond1_labels = sorted([e.get("label", "") for e in cond1_edges])
     assert cond1_labels == ["else", "if count > 10"]
 
     # Second condition (count > 0) should have if/else branches
-    cond2_edges = [e for e in result["edges"] if label_map.get(e["source"]) == "count > 0"]
+    cond2_edges = [
+        e for e in result["edges"] if label_map.get(e["source"]) == "count > 0"
+    ]
     assert len(cond2_edges) == 2, "Second condition should have 2 branches (if/else)"
     cond2_labels = sorted([e.get("label", "") for e in cond2_edges])
     assert cond2_labels == ["else", "if count > 0"]
 
     # Third condition (count == 0) should have only if branch (no else, nothing follows)
-    cond3_edges = [e for e in result["edges"] if label_map.get(e["source"]) == "count == 0"]
+    cond3_edges = [
+        e for e in result["edges"] if label_map.get(e["source"]) == "count == 0"
+    ]
     assert len(cond3_edges) == 1, "Third condition should have 1 branch (if only)"
     cond3_labels = [e.get("label", "") for e in cond3_edges]
     assert cond3_labels == ["if count == 0"]
@@ -2144,24 +2618,47 @@ def main() -> list[str]:
         assert "lineno" in node_data, f"Node '{node_label}' missing 'lineno'"
         assert "end_lineno" in node_data, f"Node '{node_label}' missing 'end_lineno'"
         assert "col_offset" in node_data, f"Node '{node_label}' missing 'col_offset'"
-        assert "end_col_offset" in node_data, f"Node '{node_label}' missing 'end_col_offset'"
+        assert (
+            "end_col_offset" in node_data
+        ), f"Node '{node_label}' missing 'end_col_offset'"
 
         # Verify they are integers
-        assert isinstance(node_data["lineno"], int), f"Node '{node_label}' lineno is not an int"
-        assert isinstance(node_data["end_lineno"], int), f"Node '{node_label}' end_lineno is not an int"
-        assert isinstance(node_data["col_offset"], int), f"Node '{node_label}' col_offset is not an int"
-        assert isinstance(node_data["end_col_offset"], int), f"Node '{node_label}' end_col_offset is not an int"
+        assert isinstance(
+            node_data["lineno"], int
+        ), f"Node '{node_label}' lineno is not an int"
+        assert isinstance(
+            node_data["end_lineno"], int
+        ), f"Node '{node_label}' end_lineno is not an int"
+        assert isinstance(
+            node_data["col_offset"], int
+        ), f"Node '{node_label}' col_offset is not an int"
+        assert isinstance(
+            node_data["end_col_offset"], int
+        ), f"Node '{node_label}' end_col_offset is not an int"
 
         # Verify logical constraints
-        assert node_data["lineno"] > 0, f"Node '{node_label}' has invalid lineno: {node_data['lineno']}"
-        assert node_data["end_lineno"] >= node_data["lineno"], f"Node '{node_label}' has end_lineno < lineno"
-        assert node_data["col_offset"] >= 0, f"Node '{node_label}' has negative col_offset"
-        assert node_data["end_col_offset"] >= 0, f"Node '{node_label}' has negative end_col_offset"
+        assert (
+            node_data["lineno"] > 0
+        ), f"Node '{node_label}' has invalid lineno: {node_data['lineno']}"
+        assert (
+            node_data["end_lineno"] >= node_data["lineno"]
+        ), f"Node '{node_label}' has end_lineno < lineno"
+        assert (
+            node_data["col_offset"] >= 0
+        ), f"Node '{node_label}' has negative col_offset"
+        assert (
+            node_data["end_col_offset"] >= 0
+        ), f"Node '{node_label}' has negative end_col_offset"
 
     # Test specific nodes for correct position information
     # Find the "customer_ids = get_customer_ids()" operation
     get_customer_ids_node = next(
-        (n for n in result["nodes"] if n["data"]["label"] == "customer_ids = get_customer_ids()"), None
+        (
+            n
+            for n in result["nodes"]
+            if n["data"]["label"] == "customer_ids = get_customer_ids()"
+        ),
+        None,
     )
     assert get_customer_ids_node is not None
     assert get_customer_ids_node["data"]["lineno"] == 4
@@ -2170,7 +2667,10 @@ def main() -> list[str]:
     assert get_customer_ids_node["data"]["end_col_offset"] == 37
 
     # Find the condition node
-    condition_node = next((n for n in result["nodes"] if n["data"]["label"] == "len(customer_ids) > 0"), None)
+    condition_node = next(
+        (n for n in result["nodes"] if n["data"]["label"] == "len(customer_ids) > 0"),
+        None,
+    )
     assert condition_node is not None
     assert condition_node["data"]["lineno"] == 6
     assert condition_node["data"]["end_lineno"] == 8
@@ -2178,12 +2678,186 @@ def main() -> list[str]:
     assert condition_node["data"]["end_col_offset"] == 57
 
     # Find the loop node
-    loop_node = next((n for n in result["nodes"] if n["data"]["label"] == "for customer_id in customer_ids"), None)
+    loop_node = next(
+        (
+            n
+            for n in result["nodes"]
+            if n["data"]["label"] == "for customer_id in customer_ids"
+        ),
+        None,
+    )
     assert loop_node is not None
     assert loop_node["data"]["lineno"] == 7
     assert loop_node["data"]["end_lineno"] == 8
     assert loop_node["data"]["col_offset"] == 8
     assert loop_node["data"]["end_col_offset"] == 57
+
+
+def test_export_from_code_three_level_nested_loops():
+    """Test 3-level deep loop nesting with correct parentId assignments."""
+    code = """
+@flow
+def main() -> None:
+    for i in range(3):
+        print(f"Level 1: {i}")
+        for j in range(2):
+            print(f"Level 2: {i},{j}")
+            for k in range(2):
+                print(f"Level 3: {i},{j},{k}")
+                process(i, j, k)
+    """
+    flow = ReactFlow.from_code(code, field="main", simplify=False, inner=False)
+    result = flow.export()
+
+    # Find the loop nodes
+    loops = [n for n in result["nodes"] if n["type"] == "loop"]
+    assert len(loops) == 3, f"Expected 3 loops, got {len(loops)}"
+
+    # Build a map for easier lookup
+    nodes_by_label_prefix = {}
+    for n in result["nodes"]:
+        label = n["data"]["label"]
+        if "range(3)" in label:
+            nodes_by_label_prefix["loop1"] = n
+        elif "range(2)" in label and "j" in label:
+            nodes_by_label_prefix["loop2"] = n
+        elif "range(2)" in label and "k" in label:
+            nodes_by_label_prefix["loop3"] = n
+        elif "Level 1" in label:
+            nodes_by_label_prefix["print1"] = n
+        elif "Level 2" in label:
+            nodes_by_label_prefix["print2"] = n
+        elif "Level 3" in label:
+            nodes_by_label_prefix["print3"] = n
+        elif "process(" in label:
+            nodes_by_label_prefix["process"] = n
+
+    # Verify 3-level nesting structure
+    loop1 = nodes_by_label_prefix["loop1"]
+    loop2 = nodes_by_label_prefix["loop2"]
+    loop3 = nodes_by_label_prefix["loop3"]
+
+    # Level 1 loop: no parent
+    assert "parentId" not in loop1, "Outermost loop should have no parent"
+
+    # Level 2 loop: parent is level 1
+    assert (
+        loop2.get("parentId") == loop1["id"]
+    ), f"Loop 2 should have Loop 1 as parent, got {loop2.get('parentId')}"
+
+    # Level 3 loop: parent is level 2
+    assert (
+        loop3.get("parentId") == loop2["id"]
+    ), f"Loop 3 should have Loop 2 as parent, got {loop3.get('parentId')}"
+
+    # Statements should have correct parents
+    print1 = nodes_by_label_prefix["print1"]
+    print2 = nodes_by_label_prefix["print2"]
+    print3 = nodes_by_label_prefix["print3"]
+    process_node = nodes_by_label_prefix["process"]
+
+    assert print1.get("parentId") == loop1["id"], "Print 1 should be child of loop 1"
+    assert print2.get("parentId") == loop2["id"], "Print 2 should be child of loop 2"
+    assert print3.get("parentId") == loop3["id"], "Print 3 should be child of loop 3"
+    assert (
+        process_node.get("parentId") == loop3["id"]
+    ), "Process should be child of loop 3"
+
+    print(f"✓ 3-level nesting verified:")
+    print(f"  Loop 1 (range(3)): no parent")
+    print(f"  Loop 2 (range(2) j): parent = Loop 1")
+    print(f"  Loop 3 (range(2) k): parent = Loop 2")
+    print(f"  process(i,j,k): parent = Loop 3")
+
+
+def test_export_from_code_multiple_statements_in_nested_loops():
+    """Test multiple statements within nested loops get correct parentIds."""
+    code = """
+@flow
+def main() -> list[str]:
+    results = []
+    for customer in customers:
+        customer_id = customer.id
+        customer_name = customer.name
+        log(f"Processing {customer_name}")
+
+        for order in customer.orders:
+            order_id = order.id
+            order_total = calculate_total(order)
+            validate_order(order)
+            process_payment(order, order_total)
+            results.append(order_id)
+
+        send_notification(customer_id)
+        update_status(customer_id, "completed")
+
+    return results
+    """
+    flow = ReactFlow.from_code(code, field="main", simplify=False, inner=False)
+    result = flow.export()
+
+    # Find loops
+    outer_loop = None
+    inner_loop = None
+    for n in result["nodes"]:
+        if n["type"] == "loop":
+            if "customer in customers" in n["data"]["label"]:
+                outer_loop = n
+            elif "order in customer.orders" in n["data"]["label"]:
+                inner_loop = n
+
+    assert outer_loop is not None, "Outer loop not found"
+    assert inner_loop is not None, "Inner loop not found"
+
+    # Verify loop nesting
+    assert "parentId" not in outer_loop, "Outer loop should have no parent"
+    assert (
+        inner_loop.get("parentId") == outer_loop["id"]
+    ), "Inner loop should have outer loop as parent"
+
+    # Check all statements in outer loop (but not in inner loop)
+    outer_loop_statements = [
+        "customer.id",
+        "customer.name",
+        "log(",
+        "send_notification",
+        "update_status",
+    ]
+    for stmt_pattern in outer_loop_statements:
+        nodes = [n for n in result["nodes"] if stmt_pattern in n["data"]["label"]]
+        for node in nodes:
+            assert (
+                node.get("parentId") == outer_loop["id"]
+            ), f"Statement '{node['data']['label']}' should be child of outer loop, got {node.get('parentId')}"
+
+    # Check all statements in inner loop
+    inner_loop_statements = [
+        "order.id",
+        "calculate_total",
+        "validate_order",
+        "process_payment",
+        "results.append",
+    ]
+    for stmt_pattern in inner_loop_statements:
+        nodes = [
+            n
+            for n in result["nodes"]
+            if stmt_pattern in n["data"]["label"]
+            and n["type"] in ["operation", "subroutine"]
+        ]
+        for node in nodes:
+            # These should be children of inner loop (multi-level nesting!)
+            assert (
+                node.get("parentId") == inner_loop["id"]
+            ), f"Statement '{node['data']['label']}' should be child of inner loop, got {node.get('parentId')}"
+
+    print(f"✓ Multiple statements verified:")
+    print(
+        f"  Outer loop statements: {len([n for n in result['nodes'] if n.get('parentId') == outer_loop['id']])}"
+    )
+    print(
+        f"  Inner loop statements: {len([n for n in result['nodes'] if n.get('parentId') == inner_loop['id']])}"
+    )
 
 
 if __name__ == "__main__":

@@ -28,7 +28,9 @@ class ReactFlow(NodesGroup):
         super().__init__(head_node)
 
     @staticmethod
-    def from_code(code: str, field: str = "", inner=True, simplify=True, conds_align=False):
+    def from_code(
+        code: str, field: str = "", inner=True, simplify=True, conds_align=False
+    ):
         """
         Get a ReactFlow instance from a str of Python code.
 
@@ -84,7 +86,9 @@ class ReactFlow(NodesGroup):
         field_ast = ReactFlow.find_field_from_ast(code_ast, field)
 
         assert hasattr(field_ast, "body")
-        assert field_ast.body, f"{field}: nothing to parse. Check given code and field please."
+        assert (
+            field_ast.body
+        ), f"{field}: nothing to parse. Check given code and field please."
 
         f = field_ast.body if inner else [field_ast]
         p = parse(f, simplify=simplify, conds_align=conds_align)
@@ -135,7 +139,11 @@ class ReactFlow(NodesGroup):
         field_list = field.split(".")
         try:
             for fd in field_list:
-                for ao in ast_obj.body:  # raises AttributeError: ast_obj along the field path has no body
+                for (
+                    ao
+                ) in (
+                    ast_obj.body
+                ):  # raises AttributeError: ast_obj along the field path has no body
                     if hasattr(ao, "name") and ao.name == fd:
                         ast_obj = ao
             assert ast_obj.name == field_list[-1], "field not found"
@@ -154,10 +162,15 @@ class ReactFlow(NodesGroup):
             # Key distinction: loop body nodes should connect BACK to the loop condition
             # Nodes that continue after the loop should NOT be considered children
             if isinstance(parent_node, LoopCondition):
-                if hasattr(parent_node, "connection_yes") and parent_node.connection_yes:
+                if (
+                    hasattr(parent_node, "connection_yes")
+                    and parent_node.connection_yes
+                ):
                     loop_body = parent_node.connection_yes.next_node
                     # Check if target is in the loop body AND connects back to the loop
-                    if self._contains_node_in_loop_body(loop_body, target_node, parent_node, set()):
+                    if self._contains_node_in_loop_body(
+                        loop_body, target_node, parent_node, set()
+                    ):
                         return True
                 return False
 
@@ -176,7 +189,9 @@ class ReactFlow(NodesGroup):
             pass
         return False
 
-    def _contains_node_in_loop_body(self, loop_body, target_node, loop_condition, visited=None):
+    def _contains_node_in_loop_body(
+        self, loop_body, target_node, loop_condition, visited=None
+    ):
         """Check if target_node is in the loop body using both AST and graph traversal."""
         if visited is None:
             visited = set()
@@ -191,7 +206,9 @@ class ReactFlow(NodesGroup):
         if hasattr(loop_condition, "ast_object") and hasattr(target_node, "ast_object"):
             # AST-based check is definitive - if the target is in the loop's AST body, it's a child
             # If not, it's NOT a child, regardless of graph connections
-            return self._is_node_in_loop_ast_body(loop_condition.ast_object, target_node.ast_object)
+            return self._is_node_in_loop_ast_body(
+                loop_condition.ast_object, target_node.ast_object
+            )
 
         # Only use graph-based checks if AST objects are not available
         # Direct match
@@ -203,19 +220,25 @@ class ReactFlow(NodesGroup):
             if loop_body.sub == target_node:
                 return True
             # Continue checking in sub
-            if self._contains_node_in_loop_body(loop_body.sub, target_node, loop_condition, visited):
+            if self._contains_node_in_loop_body(
+                loop_body.sub, target_node, loop_condition, visited
+            ):
                 return True
 
         # For condition nodes inside the loop, check their branches
         if hasattr(loop_body, "connection_yes") or hasattr(loop_body, "connection_no"):
             if hasattr(loop_body, "connection_yes") and loop_body.connection_yes:
                 yes_next = loop_body.connection_yes.next_node
-                if self._contains_node_in_loop_body(yes_next, target_node, loop_condition, visited):
+                if self._contains_node_in_loop_body(
+                    yes_next, target_node, loop_condition, visited
+                ):
                     return True
 
             if hasattr(loop_body, "connection_no") and loop_body.connection_no:
                 no_next = loop_body.connection_no.next_node
-                if self._contains_node_in_loop_body(no_next, target_node, loop_condition, visited):
+                if self._contains_node_in_loop_body(
+                    no_next, target_node, loop_condition, visited
+                ):
                     return True
 
         # Follow sequential connections within the loop body
@@ -236,7 +259,9 @@ class ReactFlow(NodesGroup):
                         # This is a connection to the loop exit, don't follow it
                         continue
                     # Check if this connection leads to the target within the loop body
-                    if self._contains_node_in_loop_body(next_node, target_node, loop_condition, visited):
+                    if self._contains_node_in_loop_body(
+                        next_node, target_node, loop_condition, visited
+                    ):
                         return True
 
         return False
@@ -276,10 +301,80 @@ class ReactFlow(NodesGroup):
                 attr_value = getattr(container_ast, attr_name)
                 if isinstance(attr_value, list):
                     for item in attr_value:
-                        if item == target_ast or self._ast_contains(item, target_ast, visited):
+                        if item == target_ast or self._ast_contains(
+                            item, target_ast, visited
+                        ):
                             return True
 
         return False
+
+    def _find_innermost_parent(self, orig_node, all_nodes):
+        """Find the innermost (most nested) loop or condition that contains this node.
+
+        This is the simplified parent-finding logic that replaces the complex depth-limited
+        approaches. It finds the actual parent based on AST containment without artificial
+        depth constraints.
+
+        Args:
+            orig_node: The original node to find a parent for
+            all_nodes: List of (original_node, react_node) tuples
+
+        Returns:
+            The react_node ID of the innermost parent, or None if no parent exists
+        """
+        from pyreactflow.ast_node import LoopCondition, IfCondition
+
+        # Determine what types of nodes can be parents based on the target node type
+        # For the target node, we need to find its type
+        target_react_type = None
+        for check_orig, check_react in all_nodes:
+            if check_orig is orig_node:
+                target_react_type = check_react["type"]
+                break
+
+        # Find all potential parents (loops and conditions that contain this node)
+        potential_parents = []
+
+        for candidate_orig, candidate_react in all_nodes:
+            # Only loops can be parents
+            # Conditions use edges for control flow, not parent-child relationships
+            if candidate_react["type"] != "loop":
+                continue
+
+            # Check if this candidate contains our target node
+            if self._is_child_of_parent(orig_node, candidate_orig):
+                potential_parents.append((candidate_orig, candidate_react))
+
+        if not potential_parents:
+            return None
+
+        # Find the innermost parent (the one that is not contained by any other potential parent)
+        for candidate_orig, candidate_react in potential_parents:
+            is_innermost = True
+
+            # Check if this candidate is contained by any other potential parent
+            for other_orig, other_react in potential_parents:
+                if candidate_orig is not other_orig:
+                    # If candidate is a child of other, then other is more outer (less nested)
+                    # So candidate is more inner (more nested)
+                    # We want the MOST inner, so if candidate is contained by other,
+                    # candidate is more nested - but we need to check if other contains candidate
+                    if self._is_child_of_parent(candidate_orig, other_orig):
+                        # candidate is inside other, so candidate is MORE nested
+                        # other is LESS nested, so candidate might be the innermost
+                        # We continue checking
+                        pass
+                    elif self._is_child_of_parent(other_orig, candidate_orig):
+                        # other is inside candidate, so other is MORE nested
+                        # candidate is LESS nested, so candidate is NOT the innermost
+                        is_innermost = False
+                        break
+
+            if is_innermost:
+                return candidate_react["id"]
+
+        # If we get here, return the first one (shouldn't happen with proper containment logic)
+        return potential_parents[0][1]["id"]
 
     def _node_connects_to_loop(self, node, loop_condition, visited, max_depth=10):
         """Check if a node eventually connects back to the loop condition."""
@@ -296,12 +391,16 @@ class ReactFlow(NodesGroup):
                     if conn.next_node == loop_condition:
                         return True
                     # Check if this connection eventually leads back to the loop
-                    if self._node_connects_to_loop(conn.next_node, loop_condition, visited, max_depth - 1):
+                    if self._node_connects_to_loop(
+                        conn.next_node, loop_condition, visited, max_depth - 1
+                    ):
                         return True
 
         return False
 
-    def _check_nested_condition_containment(self, loop_body, target_node, visited=None, max_depth=3):
+    def _check_nested_condition_containment(
+        self, loop_body, target_node, visited=None, max_depth=3
+    ):
         """Check if target_node is contained within any condition inside the loop body."""
         if visited is None:
             visited = set()
@@ -317,7 +416,9 @@ class ReactFlow(NodesGroup):
             if self._contains_node(loop_body.sub, target_node, set()):
                 return True
             # Recursively check the sub for nested conditions
-            if self._check_nested_condition_containment(loop_body.sub, target_node, visited, max_depth - 1):
+            if self._check_nested_condition_containment(
+                loop_body.sub, target_node, visited, max_depth - 1
+            ):
                 return True
 
         if hasattr(loop_body, "child") and loop_body.child:
@@ -325,7 +426,9 @@ class ReactFlow(NodesGroup):
             if self._contains_node(loop_body.child, target_node, set()):
                 return True
             # Recursively check the child for nested conditions
-            if self._check_nested_condition_containment(loop_body.child, target_node, visited, max_depth - 1):
+            if self._check_nested_condition_containment(
+                loop_body.child, target_node, visited, max_depth - 1
+            ):
                 return True
 
         # Check if loop_body itself is a condition that contains the target
@@ -336,7 +439,9 @@ class ReactFlow(NodesGroup):
                 if self._contains_node(yes_next, target_node, set()):
                     return True
                 # Recursively check for deeper conditions
-                if self._check_nested_condition_containment(yes_next, target_node, visited, max_depth - 1):
+                if self._check_nested_condition_containment(
+                    yes_next, target_node, visited, max_depth - 1
+                ):
                     return True
 
             if hasattr(loop_body, "connection_no") and loop_body.connection_no:
@@ -344,19 +449,25 @@ class ReactFlow(NodesGroup):
                 if self._contains_node(no_next, target_node, set()):
                     return True
                 # Recursively check for deeper conditions
-                if self._check_nested_condition_containment(no_next, target_node, visited, max_depth - 1):
+                if self._check_nested_condition_containment(
+                    no_next, target_node, visited, max_depth - 1
+                ):
                     return True
 
         # Check general connections
         if hasattr(loop_body, "connections") and loop_body.connections:
             for conn in loop_body.connections:
                 if hasattr(conn, "next_node") and conn.next_node:
-                    if self._check_nested_condition_containment(conn.next_node, target_node, visited, max_depth - 1):
+                    if self._check_nested_condition_containment(
+                        conn.next_node, target_node, visited, max_depth - 1
+                    ):
                         return True
 
         return False
 
-    def _contains_node_deep(self, container_node, target_node, visited=None, max_depth=5):
+    def _contains_node_deep(
+        self, container_node, target_node, visited=None, max_depth=5
+    ):
         """Check if container_node contains the target_node, including through nested conditions."""
         if visited is None:
             visited = set()
@@ -375,14 +486,18 @@ class ReactFlow(NodesGroup):
             if container_node.sub == target_node:
                 return True
             # Recursively check deeper
-            if self._contains_node_deep(container_node.sub, target_node, visited, max_depth - 1):
+            if self._contains_node_deep(
+                container_node.sub, target_node, visited, max_depth - 1
+            ):
                 return True
 
         if hasattr(container_node, "child") and container_node.child:
             if container_node.child == target_node:
                 return True
             # Recursively check deeper
-            if self._contains_node_deep(container_node.child, target_node, visited, max_depth - 1):
+            if self._contains_node_deep(
+                container_node.child, target_node, visited, max_depth - 1
+            ):
                 return True
 
         # For condition nodes, check their yes/no branches deeply
@@ -400,12 +515,16 @@ class ReactFlow(NodesGroup):
         if hasattr(container_node, "connections") and container_node.connections:
             for conn in container_node.connections:
                 if hasattr(conn, "next_node") and conn.next_node:
-                    if self._contains_node_deep(conn.next_node, target_node, visited, max_depth - 1):
+                    if self._contains_node_deep(
+                        conn.next_node, target_node, visited, max_depth - 1
+                    ):
                         return True
 
         return False
 
-    def _contains_node_structurally(self, container_node, target_node, visited=None, max_depth=3):
+    def _contains_node_structurally(
+        self, container_node, target_node, visited=None, max_depth=3
+    ):
         """Check if container_node structurally contains target_node (not just sequentially reachable)."""
         if visited is None:
             visited = set()
@@ -424,25 +543,33 @@ class ReactFlow(NodesGroup):
             if container_node.sub == target_node:
                 return True
             # Recursively check sub for structural containment
-            if self._contains_node_structurally(container_node.sub, target_node, visited, max_depth - 1):
+            if self._contains_node_structurally(
+                container_node.sub, target_node, visited, max_depth - 1
+            ):
                 return True
 
         if hasattr(container_node, "child") and container_node.child:
             if container_node.child == target_node:
                 return True
             # Recursively check child for structural containment
-            if self._contains_node_structurally(container_node.child, target_node, visited, max_depth - 1):
+            if self._contains_node_structurally(
+                container_node.child, target_node, visited, max_depth - 1
+            ):
                 return True
 
         # For condition nodes, check their branches (these represent structural containment)
         if hasattr(container_node, "connection_yes") and container_node.connection_yes:
             yes_next = container_node.connection_yes.next_node
-            if self._contains_node_structurally(yes_next, target_node, visited, max_depth - 1):
+            if self._contains_node_structurally(
+                yes_next, target_node, visited, max_depth - 1
+            ):
                 return True
 
         if hasattr(container_node, "connection_no") and container_node.connection_no:
             no_next = container_node.connection_no.next_node
-            if self._contains_node_structurally(no_next, target_node, visited, max_depth - 1):
+            if self._contains_node_structurally(
+                no_next, target_node, visited, max_depth - 1
+            ):
                 return True
 
         # DO NOT follow general connections - these often represent sequential flow, not structural containment
@@ -464,13 +591,21 @@ class ReactFlow(NodesGroup):
             return True
 
         # For condition nodes, check their branches
-        if hasattr(container_node, "connection_yes") or hasattr(container_node, "connection_no"):
-            if hasattr(container_node, "connection_yes") and container_node.connection_yes:
+        if hasattr(container_node, "connection_yes") or hasattr(
+            container_node, "connection_no"
+        ):
+            if (
+                hasattr(container_node, "connection_yes")
+                and container_node.connection_yes
+            ):
                 yes_next = container_node.connection_yes.next_node
                 if self._contains_node(yes_next, target_node, visited):
                     return True
 
-            if hasattr(container_node, "connection_no") and container_node.connection_no:
+            if (
+                hasattr(container_node, "connection_no")
+                and container_node.connection_no
+            ):
                 no_next = container_node.connection_no.next_node
                 if self._contains_node(no_next, target_node, visited):
                     return True
@@ -481,7 +616,10 @@ class ReactFlow(NodesGroup):
             if container_node.sub == target_node:
                 return True
             # Check if sub is a wrapper containing our target
-            if hasattr(container_node.sub, "cond_node") and container_node.sub.cond_node == target_node:
+            if (
+                hasattr(container_node.sub, "cond_node")
+                and container_node.sub.cond_node == target_node
+            ):
                 return True
             # Check if sub has connections that lead to our target (including sequential chains)
             if self._check_reachable_in_branch(container_node.sub, target_node):
@@ -492,7 +630,10 @@ class ReactFlow(NodesGroup):
             if container_node.child == target_node:
                 return True
             # Check if child is a wrapper containing our target
-            if hasattr(container_node.child, "cond_node") and container_node.child.cond_node == target_node:
+            if (
+                hasattr(container_node.child, "cond_node")
+                and container_node.child.cond_node == target_node
+            ):
                 return True
             # Check if child has connections that lead to our target (including sequential chains)
             if self._check_reachable_in_branch(container_node.child, target_node):
@@ -511,7 +652,9 @@ class ReactFlow(NodesGroup):
 
         return False
 
-    def _is_sequential_connection_in_loop_body(self, start_node, next_node, target_node, visited, max_depth=10):
+    def _is_sequential_connection_in_loop_body(
+        self, start_node, next_node, target_node, visited, max_depth=10
+    ):
         """Check if next_node leads to target_node through sequential connections within a loop body."""
         if max_depth <= 0 or not next_node or id(next_node) in visited:
             return False
@@ -547,39 +690,19 @@ class ReactFlow(NodesGroup):
                         continue
 
                     if self._is_sequential_connection_in_loop_body(
-                        next_node, conn.next_node, target_node, current_visited, max_depth - 1
+                        next_node,
+                        conn.next_node,
+                        target_node,
+                        current_visited,
+                        max_depth - 1,
                     ):
                         return True
 
         return False
 
-    def _is_statement_sequential_after_loop(self, statement_node, loop_node, all_nodes):
-        """Check if a statement comes sequentially after a loop (not inside it)."""
-        try:
-            # Look for edges that go from the loop to this statement
-            # This would indicate the statement is sequential after the loop
-            loop_edges = loop_node.to_react_flow_edges()
-            statement_node_name = getattr(statement_node, "node_name", None)
-
-            if statement_node_name:
-                for edge in loop_edges:
-                    if edge["target"] == statement_node_name:
-                        # The loop connects directly to this statement, so it's sequential after
-                        return True
-
-            # Also check if this statement is reachable through the loop's no/exit connection
-            # In complex if/else cases, statements after loops might be connected via the condition's no branch
-            if hasattr(loop_node, "connection_no") and loop_node.connection_no:
-                no_next = loop_node.connection_no.next_node
-                # Check if the statement is reachable through the exit path
-                if self._is_reachable_through_exit_path(no_next, statement_node):
-                    return True
-
-            return False
-        except (AttributeError, TypeError):
-            return False
-
-    def _is_reachable_through_exit_path(self, start_node, target_node, visited=None, max_depth=5):
+    def _is_reachable_through_exit_path(
+        self, start_node, target_node, visited=None, max_depth=5
+    ):
         """Check if target is reachable through exit/sequential path from start."""
         if visited is None:
             visited = set()
@@ -605,16 +728,22 @@ class ReactFlow(NodesGroup):
                         # This is likely a loop condition, don't follow
                         continue
 
-                    if self._is_reachable_through_exit_path(conn.next_node, target_node, visited, max_depth - 1):
+                    if self._is_reachable_through_exit_path(
+                        conn.next_node, target_node, visited, max_depth - 1
+                    ):
                         return True
 
         # For wrapper nodes, check their sub/child
         if hasattr(start_node, "sub") and start_node.sub:
-            if self._is_reachable_through_exit_path(start_node.sub, target_node, visited, max_depth - 1):
+            if self._is_reachable_through_exit_path(
+                start_node.sub, target_node, visited, max_depth - 1
+            ):
                 return True
 
         if hasattr(start_node, "child") and start_node.child:
-            if self._is_reachable_through_exit_path(start_node.child, target_node, visited, max_depth - 1):
+            if self._is_reachable_through_exit_path(
+                start_node.child, target_node, visited, max_depth - 1
+            ):
                 return True
 
         return False
@@ -653,7 +782,9 @@ class ReactFlow(NodesGroup):
 
         return False
 
-    def _check_within_same_scope(self, start_node, target_node, max_depth=3, visited=None):
+    def _check_within_same_scope(
+        self, start_node, target_node, max_depth=3, visited=None
+    ):
         """Check if target is within the same structural scope as start (not beyond scope boundaries)."""
         if visited is None:
             visited = set()
@@ -680,19 +811,25 @@ class ReactFlow(NodesGroup):
                     next_node = conn.next_node
 
                     # Stop if we hit a scope boundary (condition/loop nodes typically indicate new scope)
-                    if hasattr(next_node, "connection_yes") or hasattr(next_node, "connection_no"):
+                    if hasattr(next_node, "connection_yes") or hasattr(
+                        next_node, "connection_no"
+                    ):
                         # This is likely a condition/loop - don't cross this boundary
                         continue
 
                     # Check if we found the target or can reach it sequentially
                     if next_node == target_node:
                         return True
-                    if self._check_within_same_scope(next_node, target_node, max_depth - 1, visited):
+                    if self._check_within_same_scope(
+                        next_node, target_node, max_depth - 1, visited
+                    ):
                         return True
 
         return False
 
-    def _check_reachable_in_branch(self, start_node, target_node, visited=None, max_depth=3):
+    def _check_reachable_in_branch(
+        self, start_node, target_node, visited=None, max_depth=3
+    ):
         """Check if target is structurally contained within the same scope as start (not just reachable)."""
         if visited is None:
             visited = set()
@@ -711,14 +848,18 @@ class ReactFlow(NodesGroup):
             if start_node.sub == target_node:
                 return True
             # Check one level deeper for structural children only
-            if self._check_reachable_in_branch(start_node.sub, target_node, visited, max_depth - 1):
+            if self._check_reachable_in_branch(
+                start_node.sub, target_node, visited, max_depth - 1
+            ):
                 return True
 
         if hasattr(start_node, "child") and start_node.child:
             if start_node.child == target_node:
                 return True
             # Check one level deeper for structural children only
-            if self._check_reachable_in_branch(start_node.child, target_node, visited, max_depth - 1):
+            if self._check_reachable_in_branch(
+                start_node.child, target_node, visited, max_depth - 1
+            ):
                 return True
 
         # For CondYN wrappers, only check direct connections within same structural scope
@@ -729,105 +870,16 @@ class ReactFlow(NodesGroup):
                     if conn.next_node == target_node:
                         return True
                     # Check if the connected node has the target as immediate child
-                    if (hasattr(conn.next_node, "sub") and conn.next_node.sub == target_node) or (
-                        hasattr(conn.next_node, "child") and conn.next_node.child == target_node
+                    if (
+                        hasattr(conn.next_node, "sub")
+                        and conn.next_node.sub == target_node
+                    ) or (
+                        hasattr(conn.next_node, "child")
+                        and conn.next_node.child == target_node
                     ):
                         return True
 
         return False
-
-    def _should_use_parent_child_instead_of_merge(self, node):
-        """Check if this node should use parent-child relationships instead of merging."""
-        # For LoopCondition: Determine merging vs parent-child based on context
-        if isinstance(node, LoopCondition):
-            if node.is_one_line_body():
-                try:
-                    loop_body = node.connection_yes.next_node
-                    if hasattr(loop_body, "sub") and loop_body.sub:
-                        body_node = loop_body.sub
-                        body_text = getattr(body_node, "node_text", "")
-
-                        # For all one-line body loops, check if nested vs sequential
-                        is_nested = self._is_loop_nested_in_condition(node)
-
-                        # Use the nesting detection:
-                        # - If nested in condition (if/else branch) -> merge (False)
-                        # - If sequential/top-level -> parent-child (True)
-                        return not is_nested  # parent-child for sequential, merge for nested
-                except:
-                    pass
-
-            # Default: no parent-child preference (allow merging)
-            return False
-
-        return False
-
-    def _merge_node_into_parent(self, child_react_node, parent_react_node, child_original_node):
-        """Merge a child node into its parent to avoid depth > 1 violations."""
-        # Get current parent label
-        current_label = parent_react_node["data"].get("label", "")
-        child_label = child_react_node["data"].get("label", "")
-
-        # Only merge if child has meaningful content and isn't already in parent
-        if child_label and child_label not in current_label:
-            # Use arrow format for merging, similar to how loops are merged
-            if "→" not in current_label:
-                # Parent doesn't have merged content yet, add arrow and child
-                parent_react_node["data"]["label"] = f"{current_label} → {child_label}"
-            else:
-                # Parent already has merged content, append child
-                parent_react_node["data"]["label"] = f"{current_label}, {child_label}"
-
-    def _is_loop_nested_in_condition(self, loop_node):
-        """Check if a loop is nested inside a condition (if/else branch) vs being sequential."""
-        # For the test cases, we need to be more specific:
-        # - A loop is nested if it's directly inside an if/else branch
-        # - A loop is sequential if it comes after other statements at the same level
-
-        # Simple heuristic: check if this loop is reachable only through condition branches
-        # vs being reachable through the main sequential flow
-
-        visited = set()
-        found_in_condition = False
-
-        def check_node(node):
-            nonlocal found_in_condition
-            if id(node) in visited:
-                return True
-            visited.add(id(node))
-
-            # Skip the loop node itself when it's a condition
-            if node == loop_node:
-                return True
-
-            # If this is an IF condition node (not a loop condition), check if our loop is in its branches
-            if (
-                hasattr(node, "connection_yes")
-                and hasattr(node, "connection_no")
-                and not isinstance(node, LoopCondition)
-            ):
-                # Check yes branch
-                if hasattr(node, "connection_yes") and node.connection_yes:
-                    yes_next = node.connection_yes.next_node
-                    if self._contains_node(yes_next, loop_node):
-                        found_in_condition = True
-                        return False  # Stop traversal
-
-                # Check no branch
-                if hasattr(node, "connection_no") and node.connection_no:
-                    no_next = node.connection_no.next_node
-                    if self._contains_node(no_next, loop_node):
-                        found_in_condition = True
-                        return False  # Stop traversal
-
-            return True
-
-        # Traverse to find if any IF condition contains this loop
-        if self.head:
-            visited_flag = f"nested-check-{id(self)}-{id(loop_node)}"
-            self._traverse(check_node, visited_flag)
-
-        return found_in_condition
 
     def _is_sequential_rather_than_nested(self, node1, node2):
         """Check if two nodes are sequential siblings rather than parent-child nested."""
@@ -836,7 +888,11 @@ class ReactFlow(NodesGroup):
         # they're likely sequential rather than nested
 
         # Special case: two loops of the same type are likely sequential
-        if hasattr(node1, "node_name") and hasattr(node2, "node_name") and isinstance(node1, type(node2)):
+        if (
+            hasattr(node1, "node_name")
+            and hasattr(node2, "node_name")
+            and isinstance(node1, type(node2))
+        ):
             # If both are loops, check if they're at the top level of the same function
             # This is a simple heuristic - could be improved with AST position analysis
             return True
@@ -886,7 +942,11 @@ class ReactFlow(NodesGroup):
                     next_node = None
                     if hasattr(current, "connections") and current.connections:
                         for conn in current.connections:
-                            if hasattr(conn, "next_node") and conn.next_node and id(conn.next_node) not in visited:
+                            if (
+                                hasattr(conn, "next_node")
+                                and conn.next_node
+                                and id(conn.next_node) not in visited
+                            ):
                                 next_node = conn.next_node
                                 break
                     current = next_node
@@ -898,9 +958,16 @@ class ReactFlow(NodesGroup):
                 # These should remain as separate entities
                 # Also exclude input/output nodes as they are typically top-level
                 is_inputoutput = hasattr(node, "__class__") and (
-                    "InputOutput" in str(node.__class__) or "Return" in str(node.__class__)
+                    "InputOutput" in str(node.__class__)
+                    or "Return" in str(node.__class__)
                 )
-                if not (hasattr(node, "connection_yes") or hasattr(node, "connection_no")) and not is_inputoutput:
+                if (
+                    not (
+                        hasattr(node, "connection_yes")
+                        or hasattr(node, "connection_no")
+                    )
+                    and not is_inputoutput
+                ):
                     represented_nodes.add(node.node_name)
 
             # For nodes with connections, follow them but don't mark condition/loop nodes
@@ -924,7 +991,10 @@ class ReactFlow(NodesGroup):
                 hasattr(other_orig, "connection_yes")
                 or hasattr(other_orig, "connection_no")
                 or hasattr(other_orig, "node_name")
-                and ("cond" in str(other_orig.node_name) or "loop" in str(other_orig.__class__.__name__.lower()))
+                and (
+                    "cond" in str(other_orig.node_name)
+                    or "loop" in str(other_orig.__class__.__name__.lower())
+                )
             ):
                 # Check if this condition is a child of the other node
                 is_child = self._is_child_of_parent(condition_node, other_orig)
@@ -970,115 +1040,29 @@ class ReactFlow(NodesGroup):
 
         return False
 
-    def _merge_loop_with_body_to_avoid_depth_violation(self, loop_node, all_nodes):
-        """Merge a loop with its body to avoid depth > 1 violations."""
-        # Find the body of this loop
-        loop_body = None
-        if hasattr(loop_node, "connection_yes") and loop_node.connection_yes:
-            # For LoopCondition, the body is in the yes connection
-            yes_next = loop_node.connection_yes.next_node
-            if hasattr(yes_next, "sub") and yes_next.sub:
-                loop_body = yes_next.sub
-            elif yes_next:
-                loop_body = yes_next
-
-        if loop_body:
-            # Get the body statement text
-            body_text = getattr(loop_body, "node_text", "")
-            loop_text = getattr(loop_node, "node_text", "")
-
-            # Create merged label in the format: "loop → body"
-            merged_label = f"{loop_text} → {body_text}"
-            return merged_label
-
-        return None
-
-    def _would_create_depth_violation(self, node, potential_parent, all_nodes):
-        """Check if assigning potential_parent to node would create depth > 1."""
-        if not potential_parent:
-            return False
-
-        # Find if potential_parent itself has a parent
-        for orig_node, react_node in all_nodes:
-            if orig_node == potential_parent:
-                potential_parent_id = self._find_parent_for_child_simple(potential_parent, all_nodes)
-                return potential_parent_id is not None
-
-        return False
-
-    def _find_top_level_ancestor(self, node, all_nodes):
-        """Find the top-level ancestor (no parent) for a given node."""
-        current_node = node
-        while current_node:
-            # Check if current_node has a parent
-            parent_id = self._find_parent_for_child_simple(current_node, all_nodes)
-            if not parent_id:
-                # This node has no parent, so it's the top-level ancestor
-                return getattr(current_node, "node_name", None)
-
-            # Find the parent node and continue up the chain
-            parent_node = None
-            for orig_node, _ in all_nodes:
-                if hasattr(orig_node, "node_name") and orig_node.node_name == parent_id:
-                    parent_node = orig_node
-                    break
-
-            if not parent_node:
-                # Can't find parent, return current node
-                return getattr(current_node, "node_name", None)
-
-            current_node = parent_node
-
-        return None
-
-    def _find_potential_parent_node(self, node, all_nodes):
-        """Find what would be the parent node for the given node."""
-        parent_id = self._find_parent_for_child_simple(node, all_nodes)
-        if parent_id:
-            for orig_node, _ in all_nodes:
-                if hasattr(orig_node, "node_name") and orig_node.node_name == parent_id:
-                    return orig_node
-        return None
-
-    def _has_parent(self, node, all_nodes):
-        """Check if a node has a parent."""
-        parent_id = self._find_parent_for_child_simple(node, all_nodes)
-        return parent_id is not None
-
-    def _find_loop_body_node(self, loop_node, all_nodes):
-        """Find the body node of a loop."""
-        # For LoopCondition, find the node in the yes branch
-        if hasattr(loop_node, "connection_yes") and loop_node.connection_yes:
-            yes_next = loop_node.connection_yes.next_node
-            if hasattr(yes_next, "sub") and yes_next.sub:
-                # Find this sub node in all_nodes
-                for orig_node, _ in all_nodes:
-                    if orig_node == yes_next.sub:
-                        return orig_node
-            elif yes_next:
-                # Find this yes_next node in all_nodes
-                for orig_node, _ in all_nodes:
-                    if orig_node == yes_next:
-                        return orig_node
-        return None
-
     def export(self):
-        """Export as react-flow compatible dict with proper depth > 1 violation handling.
+        """Export as react-flow compatible dict with proper parent-child relationships.
 
         Key principles:
-        1. Only top-level loops (depth=0) can have children via parentId
-        2. Child loops that would create depth > 1 violations get merged with their body
-        3. Condition nodes use labeled edges (Yes/No) and can have parentId to top-level loops
-        4. All other nodes assign parentId to the top-level loop that contains them
+        1. Parent assignments are based on actual AST containment (innermost parent)
+        2. Loops and conditions can have loop/condition parents (multi-level nesting allowed)
+        3. Condition nodes use labeled edges (if/elif/else)
+        4. All nodes assign parentId to their innermost containing loop or condition
         """
         all_nodes = []
         all_edges = []
         visited = set()
-        return_end_nodes = {}  # Track ReturnEnd nodes and their connecting ReturnOutput nodes
+        return_end_nodes = (
+            {}
+        )  # Track ReturnEnd nodes and their connecting ReturnOutput nodes
 
         # Step 1: Collect all nodes and edges
         def collect_nodes_and_edges(node):
-            if id(node) in visited or not hasattr(node, "node_name") or not node.node_name:
+            if (
+                id(node) in visited
+                or not hasattr(node, "node_name")
+                or not node.node_name
+            ):
                 return True
             visited.add(id(node))
 
@@ -1094,7 +1078,9 @@ class ReactFlow(NodesGroup):
                 if isinstance(node, ReturnOutput):
                     # Find which ReturnEnd this output connects to
                     for conn in node.connections:
-                        if hasattr(conn, "next_node") and isinstance(conn.next_node, ReturnEnd):
+                        if hasattr(conn, "next_node") and isinstance(
+                            conn.next_node, ReturnEnd
+                        ):
                             return_end_nodes[id(conn.next_node)] = node
 
             return True
@@ -1102,7 +1088,7 @@ class ReactFlow(NodesGroup):
         if self.head:
             self._traverse(collect_nodes_and_edges, f"export-{id(self)}")
 
-        # Step 1.5: Filter out ReturnEnd nodes that have a paired ReturnOutput
+        # Step 2: Filter out ReturnEnd nodes that have a paired ReturnOutput
         # (bare return statements should keep their ReturnEnd node)
         from pyreactflow.ast_node import ReturnEnd
 
@@ -1114,70 +1100,46 @@ class ReactFlow(NodesGroup):
             filtered_nodes.append((orig_node, react_node))
         all_nodes = filtered_nodes
 
-        # Step 1.75: Detect and merge condition chains (if/elif/else)
+        # Step 3: Detect and merge condition chains (if/elif/else)
         chains = self._detect_condition_chains(all_nodes, all_edges)
         if chains:
-            nodes_to_remove_ids, edges_to_remove, edges_to_add = self._merge_condition_chains(
-                chains, all_nodes, all_edges
+            nodes_to_remove_ids, edges_to_remove, edges_to_add = (
+                self._merge_condition_chains(chains, all_nodes, all_edges)
             )
 
             # Remove intermediate condition nodes from all_nodes
-            all_nodes = [(orig, react) for orig, react in all_nodes if react["id"] not in nodes_to_remove_ids]
+            all_nodes = [
+                (orig, react)
+                for orig, react in all_nodes
+                if react["id"] not in nodes_to_remove_ids
+            ]
 
             # Remove old edges
-            edges_to_remove_set = {(e["source"], e["target"], e.get("label", "")) for e in edges_to_remove}
+            edges_to_remove_set = {
+                (e["source"], e["target"], e.get("label", "")) for e in edges_to_remove
+            }
             all_edges = [
-                e for e in all_edges if (e["source"], e["target"], e.get("label", "")) not in edges_to_remove_set
+                e
+                for e in all_edges
+                if (e["source"], e["target"], e.get("label", ""))
+                not in edges_to_remove_set
             ]
 
             # Add new multi-branch edges
             all_edges.extend(edges_to_add)
 
-        # Step 2: Identify depth violations and necessary merging
-        top_level_loops = []
-        loops_to_merge = {}  # loop -> body_node
-        nodes_to_remove = set()  # body nodes that get merged
-
-        self._identify_depth_violations(all_nodes, top_level_loops, loops_to_merge, nodes_to_remove)
-
-        # Step 3: Process nodes
+        # Step 4: Process nodes - assign parents based on actual containment
         final_nodes = []
         final_edges = []
 
         for original_node, react_node in all_nodes:
-            # Skip nodes that have been merged
-            if original_node in nodes_to_remove:
-                continue
+            # Assign parent based on innermost containment
+            self._process_regular_node(
+                original_node, react_node, all_nodes, all_edges, final_nodes
+            )
 
-            # Handle loops that need merging due to depth > 1
-            if original_node in loops_to_merge:
-                self._create_merged_loop(
-                    original_node, loops_to_merge[original_node], react_node, top_level_loops, final_nodes
-                )
-                continue
-
-            # Handle merged loops that stayed merged
-            if (
-                react_node["type"] == "loop"
-                and "→" in react_node["data"]["label"]
-                and self._should_loop_stay_merged(
-                    original_node, [(orig, react) for orig, react in all_nodes if react["type"] == "loop"]
-                )
-            ):
-                # This is a merged loop that should stay merged - assign parent
-                # Since containment logic is problematic, use a simpler approach:
-                # assign it to the first top-level loop (there should only be one in most cases)
-                if top_level_loops:
-                    react_node["parentId"] = top_level_loops[0][1]["id"]
-                    react_node["extent"] = "parent"
-                final_nodes.append(react_node)
-                continue
-
-            # Handle regular nodes (including top-level loops)
-            self._process_regular_node(original_node, react_node, all_nodes, all_edges, final_nodes)
-
-        # Step 4: Process edges
-        self._process_edges_final(all_edges, final_nodes, loops_to_merge, nodes_to_remove, final_edges)
+        # Step 5: Process edges
+        self._process_edges_final(all_edges, final_nodes, {}, set(), final_edges)
 
         return {"nodes": final_nodes, "edges": final_edges}
 
@@ -1199,142 +1161,18 @@ class ReactFlow(NodesGroup):
 
         return False
 
-    def _identify_depth_violations(self, all_nodes, top_level_loops, loops_to_merge, nodes_to_remove):
-        """Identify depth violations and loops that need merging."""
-        loop_nodes = [(orig, react) for orig, react in all_nodes if react["type"] == "loop"]
-
-        # First, handle AST-level merged loops - split them unless they're needed for depth violations
-        for loop_node, loop_react in loop_nodes:
-            if "→" in loop_react["data"]["label"]:
-                # This loop is already merged at AST level
-                # We need to determine if this merging is necessary for depth > 1 violation
-                should_stay_merged = self._should_loop_stay_merged(loop_node, loop_nodes)
-                if should_stay_merged:
-                    # Keep the merged loop and remove its separate body node
-                    body_text = loop_react["data"]["label"].split("→")[1].strip()
-                    for body_orig, body_react in all_nodes:
-                        if body_react["type"] == "subroutine" and body_react["data"]["label"].strip() == body_text:
-                            nodes_to_remove.add(body_orig)
-                            break
-                else:
-                    # Split this loop back to separate loop and body
-                    self._split_merged_loop(loop_node, loop_react, all_nodes)
-
-        # Build containment relationships for non-merged loops
-        loop_containment = {}  # loop -> parent_loop (or None)
-        for loop_node, loop_react in loop_nodes:
-            if "→" not in loop_react["data"]["label"]:  # Only consider non-merged loops
-                parent_loop = None
-                for other_loop_node, other_loop_react in loop_nodes:
-                    if (
-                        loop_node != other_loop_node
-                        and "→" not in other_loop_react["data"]["label"]
-                        and self._is_child_of_parent(loop_node, other_loop_node)
-                    ):
-                        parent_loop = other_loop_node
-                        break
-                loop_containment[loop_node] = parent_loop
-
-        # Find top-level loops (depth 0)
-        for loop_node, loop_react in loop_nodes:
-            if "→" in loop_react["data"]["label"]:
-                # For merged loops, check if they should stay merged
-                if self._should_loop_stay_merged(loop_node, loop_nodes):
-                    # Merged loops that stay merged are NOT top-level (they'll get parents assigned)
-                    pass
-            elif loop_containment.get(loop_node) is None:
-                top_level_loops.append((loop_node, loop_react))
-
-        # Find depth > 1 violations that need merging
-        for loop_node, loop_react in loop_nodes:
-            if "→" not in loop_react["data"]["label"]:  # Only consider non-merged loops
-                parent_loop = loop_containment.get(loop_node)
-                if parent_loop is not None:
-                    # This loop has a parent - check if parent also has a parent (depth > 1)
-                    grandparent_loop = loop_containment.get(parent_loop)
-                    if grandparent_loop is not None:
-                        # This would create depth > 1, so merge this loop with its body
-                        body_node = self._find_loop_body_for_merging(loop_node, all_nodes)
-                        if body_node:
-                            loops_to_merge[loop_node] = body_node
-                            nodes_to_remove.add(body_node)
-
-    def _should_loop_stay_merged(self, loop_node, loop_nodes):
-        """Determine if a merged loop should stay merged due to depth > 1 violation."""
-        # Only keep merged for specific depth violation cases
-        # This should only happen in true depth > 1 scenarios
-
-        loop_text = getattr(loop_node, "node_text", "")
-
-        # Very specific heuristic: only keep merged if this looks like the inner loop
-        # in a depth > 1 scenario (loop inside condition inside loop)
-        if "option" in loop_text:
-            # Check if there are other non-merged loops (suggesting this is a nested case)
-            non_merged_loops = [ln for ln, lr in loop_nodes if "→" not in lr["data"]["label"]]
-            if len(non_merged_loops) == 1:  # Exactly one outer loop
-                outer_loop_text = getattr(non_merged_loops[0], "node_text", "")
-                if "customer" in outer_loop_text:
-                    # This looks like the specific depth limit enforcement case
-                    return True
-
-        # For all other cases, split the merged loops back to separate nodes
-        return False
-
-    def _split_merged_loop(self, loop_node, loop_react, all_nodes):
-        """Split a merged loop back into separate loop and body."""
-        # Extract the original loop text
-        original_loop_text = getattr(loop_node, "node_text", "")
-        loop_react["data"]["label"] = original_loop_text
-
-        # The body node should already exist separately in all_nodes
-        # We just need to make sure it's not removed
-        pass
-
-    def _find_loop_body_for_merging(self, loop_node, all_nodes):
-        """Find the body node of a loop for merging."""
-        try:
-            if hasattr(loop_node, "connection_yes") and loop_node.connection_yes:
-                yes_next = loop_node.connection_yes.next_node
-                if hasattr(yes_next, "sub") and yes_next.sub:
-                    # Find this sub node in all_nodes
-                    for orig_node, react_node in all_nodes:
-                        if orig_node == yes_next.sub and react_node["type"] == "subroutine":
-                            return orig_node
-        except:
-            pass
-        return None
-
-    def _create_merged_loop(self, loop_node, body_node, react_node, top_level_loops, final_nodes):
-        """Create a merged loop node with body in the label."""
-        loop_text = getattr(loop_node, "node_text", "")
-        body_text = getattr(body_node, "node_text", "")
-
-        # Create merged label
-        merged_label = f"{loop_text} → {body_text}"
-        react_node["data"]["label"] = merged_label
-
-        # Assign parent to the top-level loop that contains this merged loop
-        parent_id = self._find_containing_top_level_loop(loop_node, top_level_loops)
-        if parent_id:
-            react_node["parentId"] = parent_id
-            react_node["extent"] = "parent"
-
-        final_nodes.append(react_node)
-
-    def _find_containing_top_level_loop(self, child_node, top_level_loops):
-        """Find which top-level loop contains the given child node."""
-        for top_loop_node, top_loop_react in top_level_loops:
-            if self._is_child_of_parent(child_node, top_loop_node):
-                return top_loop_react["id"]
-        return None
-
-    def _process_edges_final(self, all_edges, final_nodes, loops_to_merge, nodes_to_remove, final_edges):
+    def _process_edges_final(
+        self, all_edges, final_nodes, loops_to_merge, nodes_to_remove, final_edges
+    ):
         """Process edges with cleanup for merged loops."""
         final_node_ids = {node["id"] for node in final_nodes}
 
         for edge in all_edges:
             # Skip edges involving removed nodes
-            if edge["source"] not in final_node_ids or edge["target"] not in final_node_ids:
+            if (
+                edge["source"] not in final_node_ids
+                or edge["target"] not in final_node_ids
+            ):
                 continue
 
             # Skip back edges from children to loop parents (creates cycles)
@@ -1351,25 +1189,6 @@ class ReactFlow(NodesGroup):
 
             final_edges.append(final_edge)
 
-    def _find_loop_parent(self, loop_node, all_nodes):
-        """Find the parent loop of a given loop."""
-        for orig_node, react_node in all_nodes:
-            if react_node["type"] == "loop" and orig_node != loop_node:
-                if self._loop_contains_loop(orig_node, loop_node):
-                    return orig_node
-        return None
-
-    def _loop_contains_loop(self, parent_loop, child_loop):
-        """Check if parent_loop contains child_loop."""
-        # Simple containment check via AST structure
-        try:
-            if hasattr(parent_loop, "connection_yes") and parent_loop.connection_yes:
-                yes_next = parent_loop.connection_yes.next_node
-                return self._node_contains_node(yes_next, child_loop)
-        except:
-            pass
-        return False
-
     def _node_contains_node(self, container, target):
         """Check if container node contains target node in its structure."""
         if not container or container == target:
@@ -1377,102 +1196,52 @@ class ReactFlow(NodesGroup):
 
         # Check sub and child relationships
         if hasattr(container, "sub") and container.sub:
-            if container.sub == target or self._node_contains_node(container.sub, target):
+            if container.sub == target or self._node_contains_node(
+                container.sub, target
+            ):
                 return True
 
         if hasattr(container, "child") and container.child:
-            if container.child == target or self._node_contains_node(container.child, target):
+            if container.child == target or self._node_contains_node(
+                container.child, target
+            ):
                 return True
 
         # Check connections
         if hasattr(container, "connections"):
             for conn in container.connections:
                 if hasattr(conn, "next_node") and conn.next_node:
-                    if conn.next_node == target or self._node_contains_node(conn.next_node, target):
+                    if conn.next_node == target or self._node_contains_node(
+                        conn.next_node, target
+                    ):
                         return True
         return False
 
-    def _find_safe_parent(self, node, all_nodes):
-        """Find a safe parent that won't create depth > 1."""
-        # For now, find the top-level loop that contains this node
-        for orig_node, react_node in all_nodes:
-            if react_node["type"] == "loop" and orig_node != node:
-                # Check if this loop contains our node AND has no parent itself
-                if self._loop_contains_loop(orig_node, node):
-                    parent_of_container = self._find_loop_parent(orig_node, all_nodes)
-                    if not parent_of_container:
-                        # This container has no parent, so it's safe
-                        return react_node["id"]
-        return None
-
-    def _is_connected_to_condition_via_edge(self, statement_node, all_nodes):
-        """Check if this statement is connected to a condition node via an edge."""
-        statement_node_name = getattr(statement_node, "node_name", None)
-        if not statement_node_name:
-            return False
-
-        # Check all condition nodes to see if any have edges to this statement
-        for orig_node, react_node in all_nodes:
-            if react_node["type"] == "condition":
-                # Get edges from this condition node
-                edges = orig_node.to_react_flow_edges()
-                for edge in edges:
-                    if edge["target"] == statement_node_name:
-                        # This statement is connected to a condition via an edge
-                        return True
-        return False
-
-    def _is_connected_to_top_level_condition_via_edge(self, statement_node, all_nodes):
-        """Check if this statement is connected to a TOP-LEVEL condition node via an edge."""
-        statement_node_name = getattr(statement_node, "node_name", None)
-        if not statement_node_name:
-            return False
-
-        # Check all condition nodes to see if any have edges to this statement
-        for orig_node, react_node in all_nodes:
-            if react_node["type"] == "condition":
-                # Check if this condition is top-level (no parent)
-                # A condition is top-level if it's not contained within any loop
-                condition_is_top_level = True
-                for loop_orig, loop_react in all_nodes:
-                    if loop_react["type"] == "loop":
-                        if self._is_child_of_parent(orig_node, loop_orig):
-                            condition_is_top_level = False
-                            break
-
-                if condition_is_top_level:
-                    # This is a top-level condition, check its edges
-                    edges = orig_node.to_react_flow_edges()
-                    for edge in edges:
-                        if edge["target"] == statement_node_name:
-                            # This statement is connected to a top-level condition via an edge
-                            return True
-        return False
-
-    def _find_simple_parent(self, node, all_nodes):
-        """Simple helper to find if a node has a parent."""
-        for orig_node, react_node in all_nodes:
-            if react_node["type"] == "loop":
-                if self._is_child_of_parent(node, orig_node):
-                    return react_node["id"]
-        return None
-
-    def _process_regular_node(self, original_node, react_node, all_nodes, all_edges, final_nodes):
-        """Process regular nodes (non-merged) with new parent assignment rules."""
+    def _process_regular_node(
+        self, original_node, react_node, all_nodes, all_edges, final_nodes
+    ):
+        """Process regular nodes with simplified parent assignment based on actual containment."""
         # Check if this node is a direct target of a multi-branch edge from a TOP-LEVEL condition
-        # (i.e., a condition that doesn't itself have a parent)
         # These nodes use edges for control flow and shouldn't have structural parents
         node_id = react_node["id"]
         is_top_level_multibranch_target = False
 
         # Find all condition nodes and their parent status
-        condition_nodes_map = {react["id"]: react for orig, react in all_nodes if react["type"] == "condition"}
+        condition_nodes_map = {
+            react["id"]: react
+            for orig, react in all_nodes
+            if react["type"] == "condition"
+        }
 
         for edge in all_edges:
             if edge["target"] == node_id and edge["source"] in condition_nodes_map:
                 label = edge.get("label", "")
                 # Check if this is a multi-branch edge (if/elif/else)
-                if label.startswith("if ") or label.startswith("elif ") or label == "else":
+                if (
+                    label.startswith("if ")
+                    or label.startswith("elif ")
+                    or label == "else"
+                ):
                     # Check if the source condition has a parent
                     source_condition = condition_nodes_map[edge["source"]]
                     if "parentId" not in source_condition:
@@ -1486,305 +1255,20 @@ class ReactFlow(NodesGroup):
             final_nodes.append(react_node)
             return
 
-        # Conditions can have loop parents, but not condition parents
-        if react_node["type"] == "condition":
-            # Conditions inside loops can have the loop as parent
-            parent_id = self._find_statement_parent(original_node, all_nodes)
-            if parent_id:
-                react_node["parentId"] = parent_id
-                react_node["extent"] = "parent"
-            final_nodes.append(react_node)
-            return
+        # For all other nodes, find the innermost parent (loop or condition that contains this node)
+        parent_id = self._find_innermost_parent(original_node, all_nodes)
 
-        # For loops that aren't merged, assign parent with special logic
-        if react_node["type"] == "loop":
-            # Check if we're in depth limit scenario
-            has_merged_loops = any(r["type"] == "loop" and "→" in r["data"]["label"] for _, r in all_nodes)
+        # Assign parent if one was found
+        if parent_id and parent_id != react_node["id"]:  # Prevent self-parenting
+            react_node["parentId"] = parent_id
+            react_node["extent"] = "parent"
 
-            if has_merged_loops:
-                # In depth limit scenario, merged loops should have no parent to avoid depth > 1
-                # Only the outermost non-merged loop should have no parent
-                outermost_loop = self._find_outermost_loop(all_nodes)
-                if outermost_loop and original_node == outermost_loop[0]:
-                    # This is the outermost loop, no parent
-                    pass
-                else:
-                    # This loop should be a child of the outermost loop
-                    if outermost_loop:
-                        react_node["parentId"] = outermost_loop[1]["id"]
-                        react_node["extent"] = "parent"
-            else:
-                # Normal scenario - use _find_statement_parent for better nested loop handling
-                parent_id = self._find_statement_parent(original_node, all_nodes)
-                # Prevent self-parenting: don't assign if parent_id matches current node's id
-                if parent_id and parent_id != react_node["id"]:
-                    react_node["parentId"] = parent_id
-                    react_node["extent"] = "parent"
-
-            final_nodes.append(react_node)
-            return
-
-        # For other nodes (subroutines, operations), find loop parent
-        if react_node["type"] in ("subroutine", "operation"):
-            # Special case: check if this is a top-level statement that should be an operation
-            node_text = getattr(original_node, "node_text", "")
-            if (
-                react_node["type"] == "subroutine"
-                and any(pattern in node_text for pattern in ["final", "return"])
-                and "append" in node_text
-            ):
-                # This looks like a top-level cleanup statement, make it an operation
+        # Special handling for subroutines: convert top-level subroutines to operations
+        if react_node["type"] == "subroutine" and not parent_id:
+            if self._is_truly_independent_statement(original_node, all_nodes):
                 react_node["type"] = "operation"
-                final_nodes.append(react_node)
-                return
 
-            parent_id = self._find_statement_parent(original_node, all_nodes)
-            if parent_id:
-                react_node["parentId"] = parent_id
-                react_node["extent"] = "parent"
-            else:
-                # Top-level subroutine nodes become operations if truly independent
-                if react_node["type"] == "subroutine" and self._is_truly_independent_statement(
-                    original_node, all_nodes
-                ):
-                    react_node["type"] = "operation"
-            final_nodes.append(react_node)
-            return
-
-        # For input/output and other types, no parent
         final_nodes.append(react_node)
-
-    def _find_statement_parent(self, statement_node, all_nodes):
-        """Find the loop parent for a statement node with depth limit flattening."""
-        # Special case for while loops: be more aggressive in assigning loop parents
-        # For while loops, use a simpler approach - if there's a while loop, and this statement
-        # is not clearly top-level, assign it to the while loop
-        while_loop_id = self._find_while_loop_parent_simple(statement_node, all_nodes)
-        if while_loop_id:
-            return while_loop_id
-
-        # First check: if this statement is connected to a TOP-LEVEL condition node via an edge,
-        # it should NOT have a parent (conditions use edges, not parent-child relationships)
-        # But if it's connected to a condition that's inside a loop, it can still have the loop as parent
-        if self._is_connected_to_top_level_condition_via_edge(statement_node, all_nodes):
-            return None
-
-        # Check if we're in a depth limit scenario (has merged loops)
-        has_merged_loops = any(react["type"] == "loop" and "→" in react["data"]["label"] for _, react in all_nodes)
-
-        if has_merged_loops:
-            # Depth limit scenario: flatten everything to the outermost loop
-            outermost_loop = self._find_outermost_loop(all_nodes)
-            if outermost_loop:
-                # In depth limit scenario, be more generous about assignment
-                # Most statements that aren't clearly top-level should go to the outermost loop
-                statement_text = getattr(statement_node, "node_text", "")
-
-                # Skip clearly top-level statements
-                if any(
-                    pattern in statement_text for pattern in ["get_customer_ids", "get_", "load_", "init_", "setup_"]
-                ):
-                    return None
-
-                # For results.append statements, assign to outermost loop in depth limit scenario
-                if "results.append" in statement_text:
-                    return outermost_loop[1]["id"]
-
-                # For print statements inside the loop structure (but not connected to conditions)
-                if "print(" in statement_text:
-                    return outermost_loop[1]["id"]
-
-                # Check if this statement is contained by the outermost loop
-                if self._is_child_of_parent(statement_node, outermost_loop[0]):
-                    return outermost_loop[1]["id"]
-
-        # Check if this statement is connected to a condition that has a loop parent
-        # OR if it's connected to a statement that has a loop parent (sequential chain)
-        statement_node_name = getattr(statement_node, "node_name", None)
-        if statement_node_name:
-            # First, check direct connection to conditions
-            for orig_condition, react_condition in all_nodes:
-                if react_condition["type"] == "condition":
-                    # Check if this condition has an edge to our statement
-                    edges = orig_condition.to_react_flow_edges()
-                    for edge in edges:
-                        if edge["target"] == statement_node_name:
-                            # This statement is connected to this condition via an edge
-                            # Check if the condition has a loop parent
-                            condition_parent = None
-                            for loop_orig, loop_react in all_nodes:
-                                if loop_react["type"] == "loop":
-                                    if self._is_child_of_parent(orig_condition, loop_orig):
-                                        condition_parent = loop_react["id"]
-                                        break
-
-                            if condition_parent:
-                                # The condition is inside a loop, so assign the statement to that loop
-                                return condition_parent
-
-            # Second, check if connected to another statement that already has a loop parent
-            # This handles sequential chains after condition-connected statements
-            for orig_statement, react_statement in all_nodes:
-                if react_statement["type"] in ["operation", "subroutine"] and react_statement.get("parentId"):
-                    # This statement has a parent - check if it has an edge to our statement
-                    edges = orig_statement.to_react_flow_edges()
-                    for edge in edges:
-                        if edge["target"] == statement_node_name:
-                            # Our statement is connected to a statement that has a parent
-                            # Find the parent node to check if it's a loop
-                            for check_orig, check_react in all_nodes:
-                                if check_react["id"] == react_statement["parentId"] and check_react["type"] == "loop":
-                                    # The parent is a loop, so assign our statement to the same loop
-                                    return react_statement["parentId"]
-
-        # Normal scenario: find immediate parent, but ONLY consider loop nodes as parents
-        # Condition nodes should never be parents - they use edges for connections
-        statement_node_name = getattr(statement_node, "node_name", None)
-        for orig_node, react_node in all_nodes:
-            if react_node["type"] == "loop":  # Only loops can be parents, not conditions
-                # Prevent self-parenting by checking node names
-                if statement_node_name and react_node["id"] == statement_node_name:
-                    continue
-                if self._is_child_of_parent(statement_node, orig_node):
-                    # For normal loops, all contained statements should have the loop as parent
-                    # unless they are clearly top-level statements that come after the loop
-                    statement_text = getattr(statement_node, "node_text", "")
-
-                    # Only exclude statements that are clearly sequential after the loop
-                    # Be more specific about what constitutes "after" vs "inside" a loop
-
-                    # Check if this looks like a final/cleanup statement that comes after loops
-                    if "final" in statement_text.lower():
-                        # This looks like a cleanup statement after the loop
-                        continue
-
-                    # For statements with empty string parameters, they might be cleanup statements
-                    # that come after loops rather than being part of the loop body
-                    if (statement_text.strip().endswith('("")') or statement_text.strip().endswith("('')")) and any(
-                        word in statement_text for word in ["notify", "append"]
-                    ):
-                        # This pattern suggests it's a cleanup/default statement after the loop
-                        # Check if it's actually reachable through loop exit rather than being in the body
-                        if self._is_statement_sequential_after_loop(statement_node, orig_node, all_nodes):
-                            continue
-
-                    return react_node["id"]
-
-        # Fallback: if containment logic fails, be more careful about assignment
-        # Only assign parents if the node seems to actually need one
-        statement_text = getattr(statement_node, "node_text", "")
-        statement_react_type = None
-
-        # Find the react node type for this statement
-        for orig, react in all_nodes:
-            if orig == statement_node:
-                statement_react_type = react["type"]
-                break
-
-        # Smart fallback: only assign parents when the structure really suggests containment
-        # Be conservative - when in doubt, don't assign a parent
-        if statement_react_type in ("condition", "subroutine"):
-            # For conditions: only assign parent if this seems to be a condition inside a loop
-            # NOT a top-level condition that controls loops
-            if statement_react_type == "condition":
-                # If we reached this fallback, it means the AST/graph-based containment check
-                # in the "Normal scenario" above already determined this condition is NOT inside any loop.
-                # We should trust that result and NOT use text-based heuristics that can be wrong.
-                # Conditions that are truly inside loops would have been caught by the containment check.
-                return None
-
-            # For subroutines: assign parent unless it's clearly a top-level statement
-            if statement_react_type == "subroutine":
-                # If it looks like a final/cleanup statement, don't assign parent
-                # Be more precise with pattern matching to avoid false positives
-                text_lower = statement_text.lower()
-                if (
-                    ("final" in text_lower and "append" in text_lower)
-                    or "return " in text_lower
-                    or (text_lower.endswith("result") or "result)" in text_lower)
-                ):
-                    return None
-
-                # If it looks like initialization or top-level operations, don't assign parent
-                if any(pattern in statement_text for pattern in ["get_", "load_", "init_", "setup_"]):
-                    return None
-
-                # For most subroutines, be smart about assignment when containment fails
-                # For results.append with process_customer, this is likely inside a loop
-                if "results.append" in statement_text and "process_customer" in statement_text:
-                    loop_nodes = [(orig, react) for orig, react in all_nodes if react["type"] == "loop"]
-                    if loop_nodes:
-                        # Find the first non-merged loop (merged loops have →)
-                        for orig, react in loop_nodes:
-                            if "→" not in react["data"]["label"]:
-                                return react["id"]
-                        # If no non-merged loops, use the first loop
-                        return loop_nodes[0][1]["id"]
-
-                # For print statements that seem to be inside control structures
-                if "print(" in statement_text and ("process" in statement_text or "customer" in statement_text):
-                    loop_nodes = [(orig, react) for orig, react in all_nodes if react["type"] == "loop"]
-                    if loop_nodes:
-                        # Find the first non-merged loop (merged loops have →)
-                        for orig, react in loop_nodes:
-                            if "→" not in react["data"]["label"]:
-                                return react["id"]
-                        # If no non-merged loops, use the first loop
-                        return loop_nodes[0][1]["id"]
-
-                # For most other subroutines, be conservative
-                return None
-
-        return None
-
-    def _find_while_loop_parent_simple(self, statement_node, all_nodes):
-        """Simple heuristic for while loop parent assignment."""
-        from pyreactflow.ast_node import LoopCondition
-
-        # Find any while loops in the nodes
-        while_loops = []
-        for orig_node, react_node in all_nodes:
-            if (
-                react_node["type"] == "loop"
-                and isinstance(orig_node, LoopCondition)
-                and hasattr(orig_node, "ast_object")
-                and hasattr(orig_node.ast_object, "test")
-            ):
-                while_loops.append((orig_node, react_node))
-
-        if not while_loops:
-            return None
-
-        # For while loops, use a simpler heuristic:
-        # If there's exactly one while loop, and this statement is not clearly top-level,
-        # assign it to the while loop
-        if len(while_loops) == 1:
-            while_loop_orig, while_loop_react = while_loops[0]
-
-            # Get the statement's react node to check its type and content
-            statement_react = None
-            for orig, react in all_nodes:
-                if orig == statement_node:
-                    statement_react = react
-                    break
-
-            if statement_react:
-                statement_label = statement_react["data"]["label"]
-
-                # Skip clearly top-level statements (like input/output)
-                if statement_react["type"] in ("start", "end"):
-                    return None
-
-                # Skip statements that look like initialization (before the loop)
-                # Be more specific to avoid false positives
-                if any(statement_label.startswith(pattern) for pattern in ["get_", "load_", "init_", "setup_"]):
-                    return None
-
-                # For while loops, most other statements should be inside the loop
-                # This is a simpler heuristic than trying to trace the complex AST structure
-                return while_loop_react["id"]
-
-        return None
 
     def _find_containing_while_loop(self, statement_node, all_nodes):
         """Find a while loop that contains the given statement node."""
@@ -1805,12 +1289,19 @@ class ReactFlow(NodesGroup):
     def _statement_is_inside_while_loop(self, statement_node, while_loop_node):
         """Check if a statement is inside a while loop (including through condition branches)."""
         # Get the while loop body
-        if hasattr(while_loop_node, "connection_yes") and while_loop_node.connection_yes:
+        if (
+            hasattr(while_loop_node, "connection_yes")
+            and while_loop_node.connection_yes
+        ):
             loop_body = while_loop_node.connection_yes.next_node
-            return self._statement_is_in_loop_body(statement_node, loop_body, visited=set())
+            return self._statement_is_in_loop_body(
+                statement_node, loop_body, visited=set()
+            )
         return False
 
-    def _statement_is_in_loop_body(self, statement_node, loop_body, visited=None, max_depth=10):
+    def _statement_is_in_loop_body(
+        self, statement_node, loop_body, visited=None, max_depth=10
+    ):
         """Recursively check if statement is in the loop body structure."""
         if visited is None:
             visited = set()
@@ -1830,7 +1321,9 @@ class ReactFlow(NodesGroup):
             if loop_body.sub == statement_node:
                 return True
             # Recursive check in sub
-            if self._statement_is_in_loop_body(statement_node, loop_body.sub, visited, max_depth - 1):
+            if self._statement_is_in_loop_body(
+                statement_node, loop_body.sub, visited, max_depth - 1
+            ):
                 return True
 
         if hasattr(loop_body, "child") and loop_body.child:
@@ -1838,7 +1331,9 @@ class ReactFlow(NodesGroup):
             if loop_body.child == statement_node:
                 return True
             # Recursive check in child
-            if self._statement_is_in_loop_body(statement_node, loop_body.child, visited, max_depth - 1):
+            if self._statement_is_in_loop_body(
+                statement_node, loop_body.child, visited, max_depth - 1
+            ):
                 return True
 
         # For condition nodes, check both yes and no branches
@@ -1852,7 +1347,9 @@ class ReactFlow(NodesGroup):
                 if hasattr(yes_next, "sub") and yes_next.sub == statement_node:
                     return True
                 # Recursive check in yes branch
-                if self._statement_is_in_loop_body(statement_node, yes_next, visited, max_depth - 1):
+                if self._statement_is_in_loop_body(
+                    statement_node, yes_next, visited, max_depth - 1
+                ):
                     return True
 
         if hasattr(loop_body, "connection_no") and loop_body.connection_no:
@@ -1865,7 +1362,9 @@ class ReactFlow(NodesGroup):
                 if hasattr(no_next, "sub") and no_next.sub == statement_node:
                     return True
                 # Recursive check in no branch
-                if self._statement_is_in_loop_body(statement_node, no_next, visited, max_depth - 1):
+                if self._statement_is_in_loop_body(
+                    statement_node, no_next, visited, max_depth - 1
+                ):
                     return True
 
         # Check through connections (for sequential flow within loop)
@@ -1874,37 +1373,12 @@ class ReactFlow(NodesGroup):
                 if hasattr(conn, "next_node") and conn.next_node:
                     next_node = conn.next_node
                     # Recursive check through connections
-                    if self._statement_is_in_loop_body(statement_node, next_node, visited, max_depth - 1):
+                    if self._statement_is_in_loop_body(
+                        statement_node, next_node, visited, max_depth - 1
+                    ):
                         return True
 
         return False
-
-    def _find_outermost_loop(self, all_nodes):
-        """Find the outermost loop that has no loop parent."""
-        loop_nodes = [(orig, react) for orig, react in all_nodes if react["type"] == "loop"]
-
-        for loop_node, loop_react in loop_nodes:
-            # Merged loops (with →) are never outermost - they represent inner loops
-            if "→" in loop_react["data"]["label"]:
-                continue
-
-            # Check if this loop has any loop parent
-            has_loop_parent = False
-            for other_loop_node, other_loop_react in loop_nodes:
-                if (
-                    loop_node != other_loop_node
-                    and "→"
-                    not in other_loop_react["data"]["label"]  # Only consider non-merged loops as potential parents
-                    and self._is_child_of_parent(loop_node, other_loop_node)
-                ):
-                    has_loop_parent = True
-                    break
-
-            # If this loop has no loop parent, it's outermost
-            if not has_loop_parent:
-                return (loop_node, loop_react)
-
-        return None
 
     def _node_exists_in_final(self, node_id, final_node_ids):
         """Check if a node exists in the final nodes."""
@@ -1913,7 +1387,11 @@ class ReactFlow(NodesGroup):
     def _is_merged_loop_to_body_edge(self, edge, loops_to_merge, final_nodes):
         """Check if this edge is from a merged loop to its body."""
         source_node = next((n for n in final_nodes if n["id"] == edge["source"]), None)
-        if source_node and source_node["type"] == "loop" and "→" in source_node["data"]["label"]:
+        if (
+            source_node
+            and source_node["type"] == "loop"
+            and "→" in source_node["data"]["label"]
+        ):
             # This is a merged loop, check if target was its body
             # We can't easily check this without more complex tracking, so skip for now
             pass
@@ -1965,7 +1443,9 @@ class ReactFlow(NodesGroup):
         from pyreactflow.ast_node import IfCondition
 
         # Find all condition nodes
-        condition_nodes = [(orig, react) for orig, react in all_nodes if react["type"] == "condition"]
+        condition_nodes = [
+            (orig, react) for orig, react in all_nodes if react["type"] == "condition"
+        ]
 
         if len(condition_nodes) == 0:
             return []
@@ -1978,7 +1458,9 @@ class ReactFlow(NodesGroup):
                 continue
 
             # Check if this is an IfCondition with AST object
-            if not isinstance(orig_node, IfCondition) or not hasattr(orig_node, "ast_object"):
+            if not isinstance(orig_node, IfCondition) or not hasattr(
+                orig_node, "ast_object"
+            ):
                 # Not an IfCondition (might be LoopCondition or other), create a chain of one
                 chains.append([(orig_node, react_node)])
                 processed.add(react_node["id"])
@@ -1992,7 +1474,9 @@ class ReactFlow(NodesGroup):
             # Follow the orelse chain to find elif conditions
             while current_ast.orelse:
                 # Check if orelse contains exactly one If node (this is an elif)
-                if len(current_ast.orelse) == 1 and isinstance(current_ast.orelse[0], _ast.If):
+                if len(current_ast.orelse) == 1 and isinstance(
+                    current_ast.orelse[0], _ast.If
+                ):
                     # This is an elif - find its corresponding node
                     elif_ast = current_ast.orelse[0]
 
@@ -2065,7 +1549,10 @@ class ReactFlow(NodesGroup):
                 # Find the 'yes' edge from this condition
                 yes_target = None
                 for edge in all_edges:
-                    if edge["source"] == cond_react["id"] and edge.get("label") in ("yes", "Yes"):
+                    if edge["source"] == cond_react["id"] and edge.get("label") in (
+                        "yes",
+                        "Yes",
+                    ):
                         yes_target = edge["target"]
                         edges_to_remove.append(edge)
                         break
@@ -2084,7 +1571,10 @@ class ReactFlow(NodesGroup):
             else_target = None
             else_edge = None
             for edge in all_edges:
-                if edge["source"] == last_cond_react["id"] and edge.get("label") in ("no", "No"):
+                if edge["source"] == last_cond_react["id"] and edge.get("label") in (
+                    "no",
+                    "No",
+                ):
                     else_target = edge["target"]
                     else_edge = edge
                     edges_to_remove.append(edge)
@@ -2153,65 +1643,6 @@ class ReactFlow(NodesGroup):
             if edge.get("label") in ("exit", "yes", "no"):
                 edge.pop("label", None)
 
-    def _find_parent_for_child_simple(self, child_node, all_nodes):
-        """Find parent node for a child with depth limit enforcement (flatten to avoid depth > 1)."""
-        child_node_name = getattr(child_node, "node_name", None)
-
-        # Exclude input/output nodes - they should always be top-level
-        child_react_node = child_node.to_react_flow_node()
-        if child_react_node and child_react_node.get("type") in ("inputoutput", "start", "end"):
-            return None
-
-        # Check if we're in a depth limit scenario that needs flattening
-        # This is detected by having nested loops where an inner loop would create depth > 1
-        has_nested_loops = False
-        outermost_loop = None
-        outermost_react = None
-
-        for orig_node, react_node in all_nodes:
-            if react_node["type"] == "loop":
-                # Look for the specific pattern: outer loop with customer_id and inner loop with option
-                label = react_node["data"]["label"]
-                if "customer_id" in label and "customer_ids" in label:
-                    outermost_loop = orig_node
-                    outermost_react = react_node
-                elif "option" in label and "→" in label:
-                    # This indicates we have a merged inner loop, which means depth limit scenario
-                    has_nested_loops = True
-
-        # Only apply flattening if we detected the depth limit scenario
-        if not has_nested_loops:
-            # Fall back to standard parent detection logic
-            for orig_node, react_node in all_nodes:
-                if react_node["type"] == "loop" and orig_node != child_node:
-                    if self._is_child_of_parent(child_node, orig_node):
-                        return react_node["id"]
-            return None
-
-        # If we found the outermost loop and this child isn't that loop itself
-        if outermost_loop and child_node != outermost_loop:
-            child_label = getattr(child_node, "node_text", "")
-
-            # Check if this child should be a direct child of the outermost loop
-            # Based on the expected test structure, these should be children:
-            # - condition: "len(customer_ids) > 0"
-            # - inner loop: "for option in options → ..." (but NOT "options = ['a', 'b', 'c']")
-            # - statements: "results.append(...)" and "print(...)"
-
-            # Be more specific to avoid false positives:
-            if (
-                child_react_node["type"] == "condition"
-                or (child_react_node["type"] == "loop" and "for option in" in child_label)
-                or (
-                    child_react_node["type"] == "subroutine"
-                    and ("results.append" in child_label or "print(" in child_label)
-                )
-                or "len(customer_ids)" in child_label
-            ):
-                return outermost_react["id"]
-
-        return None
-
     def _is_statement_after_loop(self, statement_node, loop_node, all_nodes):
         """Check if a statement comes AFTER a loop rather than WITHIN it."""
         try:
@@ -2244,8 +1675,12 @@ class ReactFlow(NodesGroup):
                     loop_body = loop_node.connection_yes.next_node
                     if loop_body:
                         # Check structural containment vs just reachability
-                        is_structurally_contained = self._contains_node_structurally(loop_body, statement_node, set())
-                        is_reachable = self._contains_node(loop_body, statement_node, set())
+                        is_structurally_contained = self._contains_node_structurally(
+                            loop_body, statement_node, set()
+                        )
+                        is_reachable = self._contains_node(
+                            loop_body, statement_node, set()
+                        )
 
                         # Only apply this heuristic if there's additional evidence of being sequential
                         # (e.g., the statement appears to be a cleanup operation or merge point)
@@ -2276,13 +1711,19 @@ class ReactFlow(NodesGroup):
         """Check if statement is in a condition that's in the given loop."""
         try:
             # Look for condition nodes in all_nodes that could be in this loop
-            condition_nodes_in_all = [(orig, react) for orig, react in all_nodes if react["type"] == "condition"]
+            condition_nodes_in_all = [
+                (orig, react)
+                for orig, react in all_nodes
+                if react["type"] == "condition"
+            ]
 
             for condition_orig, condition_react in condition_nodes_in_all:
                 # Check if this condition is a child of the loop
                 if self._is_child_of_parent(condition_orig, loop_node):
                     # Check if this condition contains our statement
-                    if self._condition_contains_statement(condition_orig, statement_node):
+                    if self._condition_contains_statement(
+                        condition_orig, statement_node
+                    ):
                         return True
 
             return False
@@ -2293,13 +1734,19 @@ class ReactFlow(NodesGroup):
         """Check if a condition node contains a statement in its branches."""
         try:
             # Check yes branch
-            if hasattr(condition_node, "connection_yes") and condition_node.connection_yes:
+            if (
+                hasattr(condition_node, "connection_yes")
+                and condition_node.connection_yes
+            ):
                 yes_branch = condition_node.connection_yes.next_node
                 if self._branch_contains_statement(yes_branch, statement_node):
                     return True
 
             # Check no branch
-            if hasattr(condition_node, "connection_no") and condition_node.connection_no:
+            if (
+                hasattr(condition_node, "connection_no")
+                and condition_node.connection_no
+            ):
                 no_branch = condition_node.connection_no.next_node
                 if self._branch_contains_statement(no_branch, statement_node):
                     return True
@@ -2362,7 +1809,11 @@ class ReactFlow(NodesGroup):
 
         # Exclude input/output nodes - they should always be top-level
         child_react_node = child_node.to_react_flow_node()
-        if child_react_node and child_react_node.get("type") in ("inputoutput", "start", "end"):
+        if child_react_node and child_react_node.get("type") in (
+            "inputoutput",
+            "start",
+            "end",
+        ):
             return None
 
         # First try containment-based detection
@@ -2378,7 +1829,10 @@ class ReactFlow(NodesGroup):
             for parent_original, parent_react in parent_candidates:
                 parent_edges = parent_original.to_react_flow_edges()
                 for edge in parent_edges:
-                    if edge.get("label") == "exit" and edge["target"] == child_node_name:
+                    if (
+                        edge.get("label") == "exit"
+                        and edge["target"] == child_node_name
+                    ):
                         return parent_react["id"]
 
         return None
@@ -2398,7 +1852,9 @@ class ReactFlow(NodesGroup):
 
         # Check through transparent/wrapper nodes first
         if hasattr(start_node, "child") and start_node.child:
-            if self._is_reachable(start_node.child, target_node, visited, max_depth - 1):
+            if self._is_reachable(
+                start_node.child, target_node, visited, max_depth - 1
+            ):
                 return True
 
         # Check if this is a CondYN node - get its sub node
@@ -2409,7 +1865,9 @@ class ReactFlow(NodesGroup):
         # Check through connections
         for conn in getattr(start_node, "connections", []):
             if hasattr(conn, "next_node") and conn.next_node:
-                if self._is_reachable(conn.next_node, target_node, visited, max_depth - 1):
+                if self._is_reachable(
+                    conn.next_node, target_node, visited, max_depth - 1
+                ):
                     return True
 
         return False
