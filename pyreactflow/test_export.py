@@ -1953,5 +1953,71 @@ def main() -> None:
     cond3_labels = [e.get('label', '') for e in cond3_edges]
     assert cond3_labels == ['if count == 0']
 
+def test_export_from_code_ast_position_info():
+    """Test that AST position information (lineno, end_lineno, col_offset, end_col_offset) is stored in nodes."""
+    code = '''
+@flow
+def main() -> list[str]:
+    customer_ids = get_customer_ids()
+    results = []
+    if len(customer_ids) > 0:
+        for customer_id in customer_ids:
+            results.append(process_customer(customer_id))
+    return results
+    '''
+    flow = ReactFlow.from_code(code, field="main", simplify=False, inner=False)
+    result = flow.export()
+
+    # Verify that all nodes have AST position information
+    for node in result['nodes']:
+        node_label = node['data']['label']
+        node_data = node['data']
+
+        # All nodes should have position info
+        assert 'lineno' in node_data, f"Node '{node_label}' missing 'lineno'"
+        assert 'end_lineno' in node_data, f"Node '{node_label}' missing 'end_lineno'"
+        assert 'col_offset' in node_data, f"Node '{node_label}' missing 'col_offset'"
+        assert 'end_col_offset' in node_data, f"Node '{node_label}' missing 'end_col_offset'"
+
+        # Verify they are integers
+        assert isinstance(node_data['lineno'], int), f"Node '{node_label}' lineno is not an int"
+        assert isinstance(node_data['end_lineno'], int), f"Node '{node_label}' end_lineno is not an int"
+        assert isinstance(node_data['col_offset'], int), f"Node '{node_label}' col_offset is not an int"
+        assert isinstance(node_data['end_col_offset'], int), f"Node '{node_label}' end_col_offset is not an int"
+
+        # Verify logical constraints
+        assert node_data['lineno'] > 0, f"Node '{node_label}' has invalid lineno: {node_data['lineno']}"
+        assert node_data['end_lineno'] >= node_data['lineno'], f"Node '{node_label}' has end_lineno < lineno"
+        assert node_data['col_offset'] >= 0, f"Node '{node_label}' has negative col_offset"
+        assert node_data['end_col_offset'] >= 0, f"Node '{node_label}' has negative end_col_offset"
+
+    # Test specific nodes for correct position information
+    # Find the "customer_ids = get_customer_ids()" operation
+    get_customer_ids_node = next((n for n in result['nodes']
+                                 if n['data']['label'] == "customer_ids = get_customer_ids()"), None)
+    assert get_customer_ids_node is not None
+    assert get_customer_ids_node['data']['lineno'] == 4
+    assert get_customer_ids_node['data']['end_lineno'] == 4
+    assert get_customer_ids_node['data']['col_offset'] == 4
+    assert get_customer_ids_node['data']['end_col_offset'] == 37
+
+    # Find the condition node
+    condition_node = next((n for n in result['nodes']
+                          if n['data']['label'] == "len(customer_ids) > 0"), None)
+    assert condition_node is not None
+    assert condition_node['data']['lineno'] == 6
+    assert condition_node['data']['end_lineno'] == 8
+    assert condition_node['data']['col_offset'] == 4
+    assert condition_node['data']['end_col_offset'] == 57
+
+    # Find the loop node
+    loop_node = next((n for n in result['nodes']
+                     if n['data']['label'] == "for customer_id in customer_ids"), None)
+    assert loop_node is not None
+    assert loop_node['data']['lineno'] == 7
+    assert loop_node['data']['end_lineno'] == 8
+    assert loop_node['data']['col_offset'] == 8
+    assert loop_node['data']['end_col_offset'] == 57
+
 if __name__ == "__main__":
     pytest.main([__file__])

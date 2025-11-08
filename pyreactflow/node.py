@@ -174,10 +174,10 @@ class Node(object):
             position = {'x': 0, 'y': 0}
         # Ensure label is a single line
         label = ' '.join(self.node_text.splitlines()).strip() if self.node_text else ''
-        
+
         # Base data structure
         data = {'label': label}
-        
+
         # Extract variables and function calls if this is an AstNode
         # Import here to avoid circular imports
         from pyreactflow.ast_node import AstNode
@@ -185,11 +185,23 @@ class Node(object):
             variables = self.extract_variables()
             if variables:
                 data['vars'] = variables
-            
+
             function_calls = self.extract_function_calls()
             if function_calls:
                 data['tasks'] = function_calls
-        
+
+            # Extract AST position information
+            if hasattr(self, 'ast_object') and self.ast_object:
+                ast_obj = self.ast_object
+                if hasattr(ast_obj, 'lineno'):
+                    data['lineno'] = ast_obj.lineno
+                if hasattr(ast_obj, 'end_lineno'):
+                    data['end_lineno'] = ast_obj.end_lineno
+                if hasattr(ast_obj, 'col_offset'):
+                    data['col_offset'] = ast_obj.col_offset
+                if hasattr(ast_obj, 'end_col_offset'):
+                    data['end_col_offset'] = ast_obj.end_col_offset
+
         return {
             'id': self.node_name,
             'type': self.node_type,
@@ -492,16 +504,16 @@ class InputOutputNode(Node):
         """Override to handle start type for input nodes and end type for output nodes, include parameters."""
         if position is None:
             position = {'x': 0, 'y': 0}
-        
+
         # Ensure label is a single line
         label = ' '.join(self.node_text.splitlines()).strip() if self.node_text else ''
-        
+
         # Change input nodes to type "start", output nodes to type "end"
         node_type = 'start' if self.input_or_output == self.INPUT else 'end'
-        
+
         # Base data structure
         data = {'label': label}
-        
+
         # Extract variables and function calls if this is an AstNode
         # Import here to avoid circular imports
         from pyreactflow.ast_node import AstNode
@@ -509,25 +521,37 @@ class InputOutputNode(Node):
             variables = self.extract_variables()
             if variables:
                 data['vars'] = variables
-            
+
             # Only extract function calls for non-input nodes
             # Input nodes should not have tasks from function bodies
             if not (self.input_or_output == self.INPUT):
                 function_calls = self.extract_function_calls()
                 if function_calls:
                     data['tasks'] = function_calls
-        
+
+            # Extract AST position information
+            if hasattr(self, 'ast_object') and self.ast_object:
+                ast_obj = self.ast_object
+                if hasattr(ast_obj, 'lineno'):
+                    data['lineno'] = ast_obj.lineno
+                if hasattr(ast_obj, 'end_lineno'):
+                    data['end_lineno'] = ast_obj.end_lineno
+                if hasattr(ast_obj, 'col_offset'):
+                    data['col_offset'] = ast_obj.col_offset
+                if hasattr(ast_obj, 'end_col_offset'):
+                    data['end_col_offset'] = ast_obj.end_col_offset
+
         # Add parameters for input nodes
         if self.input_or_output == self.INPUT and self.params:
             data['params'] = self.params
-        
+
         node_data = {
             'id': self.node_name,
             'type': node_type,
             'data': data,
             'position': position,
         }
-            
+
         return node_data
 
 
