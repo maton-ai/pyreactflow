@@ -523,14 +523,14 @@ class LoopCondition(AstConditionNode):
         # Override to use 'loop' type instead of 'condition' for React Flow
         if position is None:
             position = {'x': 0, 'y': 0}
-        
+
         # Check if this is a one-line body loop and create combined label
         label = ' '.join(self.node_text.splitlines()).strip() if self.node_text else ''
 
         # Only merge if we truly want to merge (not using parent-child relationships)
-        should_merge_label = (self.is_one_line_body() and 
+        should_merge_label = (self.is_one_line_body() and
                              not getattr(self, '_prefer_parent_child', False))
-        
+
         if should_merge_label:
             try:
                 # Get the loop body node
@@ -545,15 +545,27 @@ class LoopCondition(AstConditionNode):
 
         # Base data structure
         data = {'label': label}
-        
+
         # Extract variables and function calls
         variables = self.extract_variables()
         if variables:
             data['vars'] = variables
-        
+
         function_calls = self.extract_function_calls()
         if function_calls:
             data['tasks'] = function_calls
+
+        # Extract AST position information
+        if hasattr(self, 'ast_object') and self.ast_object:
+            ast_obj = self.ast_object
+            if hasattr(ast_obj, 'lineno'):
+                data['lineno'] = ast_obj.lineno
+            if hasattr(ast_obj, 'end_lineno'):
+                data['end_lineno'] = ast_obj.end_lineno
+            if hasattr(ast_obj, 'col_offset'):
+                data['col_offset'] = ast_obj.col_offset
+            if hasattr(ast_obj, 'end_col_offset'):
+                data['end_col_offset'] = ast_obj.end_col_offset
 
         return {
             'id': self.node_name,
@@ -1014,34 +1026,46 @@ class IfCondition(AstConditionNode):
     def to_react_flow_node(self, position=None):
         # Check for complex ternary (with NodesGroup branches) first
         # Only use it if this node has been marked for complex ternary by export logic
-        if (self.is_complex_ternary_candidate() and 
+        if (self.is_complex_ternary_candidate() and
             getattr(self, '_use_complex_ternary', False)):
             try:
                 # Get the condition text
                 condition_text = ' '.join(self.node_text.splitlines()).strip() if self.node_text else ''
-                
+
                 # Extract content from both branches
                 yes_text = self._extract_branch_content(self.connection_yes.next_node)
                 no_text = self._extract_branch_content(self.connection_no.next_node)
-                
+
                 # Create complex ternary expression
                 label = f'{condition_text} ? {yes_text} : {no_text}'
-                
+
                 if position is None:
                     position = {'x': 0, 'y': 0}
-                
+
                 # Base data structure
                 data = {'label': label}
-                
+
                 # Extract variables and function calls
                 variables = self.extract_variables()
                 if variables:
                     data['vars'] = variables
-                
+
                 function_calls = self.extract_function_calls()
                 if function_calls:
                     data['tasks'] = function_calls
-                
+
+                # Extract AST position information
+                if hasattr(self, 'ast_object') and self.ast_object:
+                    ast_obj = self.ast_object
+                    if hasattr(ast_obj, 'lineno'):
+                        data['lineno'] = ast_obj.lineno
+                    if hasattr(ast_obj, 'end_lineno'):
+                        data['end_lineno'] = ast_obj.end_lineno
+                    if hasattr(ast_obj, 'col_offset'):
+                        data['col_offset'] = ast_obj.col_offset
+                    if hasattr(ast_obj, 'end_col_offset'):
+                        data['end_col_offset'] = ast_obj.end_col_offset
+
                 return {
                     'id': self.node_name,
                     'type': 'condition',
@@ -1051,7 +1075,7 @@ class IfCondition(AstConditionNode):
             except (AttributeError, TypeError):
                 # Fall back to regular condition node
                 pass
-        
+
         # Check if this should be a simple ternary expression (only if explicitly requested)
         # For now, disable simple ternary to use parent-child structure instead
         use_simple_ternary = getattr(self, '_use_simple_ternary', False)
@@ -1059,29 +1083,41 @@ class IfCondition(AstConditionNode):
             try:
                 # Get the condition text
                 condition_text = ' '.join(self.node_text.splitlines()).strip() if self.node_text else ''
-                
+
                 # Get yes and no branch texts
                 yes_text = self.connection_yes.next_node.sub.node_text.strip()
                 no_text = self.connection_no.next_node.sub.node_text.strip()
-                
+
                 # Create ternary expression with consistent quote style
                 label = f'{condition_text} ? {yes_text} : {no_text}'
-                
+
                 if position is None:
                     position = {'x': 0, 'y': 0}
-                
+
                 # Base data structure
                 data = {'label': label}
-                
+
                 # Extract variables and function calls
                 variables = self.extract_variables()
                 if variables:
                     data['vars'] = variables
-                
+
                 function_calls = self.extract_function_calls()
                 if function_calls:
                     data['tasks'] = function_calls
-                
+
+                # Extract AST position information
+                if hasattr(self, 'ast_object') and self.ast_object:
+                    ast_obj = self.ast_object
+                    if hasattr(ast_obj, 'lineno'):
+                        data['lineno'] = ast_obj.lineno
+                    if hasattr(ast_obj, 'end_lineno'):
+                        data['end_lineno'] = ast_obj.end_lineno
+                    if hasattr(ast_obj, 'col_offset'):
+                        data['col_offset'] = ast_obj.col_offset
+                    if hasattr(ast_obj, 'end_col_offset'):
+                        data['end_col_offset'] = ast_obj.end_col_offset
+
                 return {
                     'id': self.node_name,
                     'type': 'condition',
@@ -1091,7 +1127,7 @@ class IfCondition(AstConditionNode):
             except (AttributeError, TypeError):
                 # Fall back to regular condition node
                 pass
-                
+
         # Default behavior - use regular condition node with children
         return super().to_react_flow_node(position)
 
