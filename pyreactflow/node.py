@@ -42,7 +42,9 @@ class Node(object):
         self.node_text = ""  # flowchart.js Node Syntax: nodeText
         self.connections: List[Connection] = []  # connected (next / sub) nodes.
 
-        self.params = {}  # flowchart.js #115 e.g. `element(param1=value1,param2=value2)=>start: Start`
+        self.params = (
+            {}
+        )  # flowchart.js #115 e.g. `element(param1=value1,param2=value2)=>start: Start`
         self.connect_direction = None  # custom thisNode(connect_direction)->nextNode
 
         self.__visited = None
@@ -62,7 +64,9 @@ class Node(object):
         """
         params = ""
         if self.params:
-            params = ",".join((f"{k}={self.params[k]}" for k in self.params))  # 'param1=value1,param2=value2'
+            params = ",".join(
+                (f"{k}={self.params[k]}" for k in self.params)
+            )  # 'param1=value1,param2=value2'
             params = f"({params})"
 
         return f"{self.node_name}{params}=>{self.node_type}: {self.node_text}\n"
@@ -225,7 +229,11 @@ class Node(object):
                 target_node = target_node.child
 
             # Skip if there's no valid final target
-            if not target_node or not hasattr(target_node, "node_name") or not target_node.node_name:
+            if (
+                not target_node
+                or not hasattr(target_node, "node_name")
+                or not target_node.node_name
+            ):
                 continue
 
             # Skip if source node doesn't have a valid name
@@ -295,7 +303,9 @@ class Connection(object):
                 return ""
             params = ",".join(set(filter(lambda x: x, self.params)))
             specification = f"({params})" if params else ""
-            fc_conn_str += f"{src_node.node_name}{specification}->{self.next_node.node_name}\n"
+            fc_conn_str += (
+                f"{src_node.node_name}{specification}->{self.next_node.node_name}\n"
+            )
         # else (self.next_node is None): fc_conn_str = ''
 
         # debug(f"Connection.fc_connection: {fc_conn_str}")
@@ -654,7 +664,9 @@ class TransparentNode(Node):
             Later call to connect() will overwrite the previous child & connection & params.
     """
 
-    def __init__(self, parent: Node, child: Node = None, connect_params: List[str] = None):
+    def __init__(
+        self, parent: Node, child: Node = None, connect_params: List[str] = None
+    ):
         """CondYesNode is a Node subclass for flowchart.js `cond(yes|no)->sub`
 
         Args:
