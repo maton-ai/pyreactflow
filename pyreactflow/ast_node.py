@@ -36,9 +36,9 @@ else:
 # TODO: beautify tail connection direction
 # TODO: Nested Function
 
+
 class AstNode(Node):
-    """AstNode is nodes from AST
-    """
+    """AstNode is nodes from AST"""
 
     def __init__(self, ast_object: _ast.AST, **kwargs):
         Node.__init__(self)
@@ -49,18 +49,18 @@ class AstNode(Node):
         self.ast_object (_ast.AST) back to Python source code
         """
         return astunparse.unparse(self.ast_object).strip()
-    
+
     def extract_variables(self) -> list:
         """
         Extract variable names being assigned in this AST node
         """
         variables = []
-        
+
         if isinstance(self.ast_object, _ast.Assign):
             # Handle regular assignments: var = value
             for target in self.ast_object.targets:
                 variables.extend(self._extract_names_from_target(target))
-        
+
         elif isinstance(self.ast_object, _ast.For):
             # Handle for loop variable: for var in iterable
             if isinstance(self.ast_object.target, _ast.Name):
@@ -70,14 +70,14 @@ class AstNode(Node):
                 for elt in self.ast_object.target.elts:
                     if isinstance(elt, _ast.Name):
                         variables.append(elt.id)
-        
+
         elif isinstance(self.ast_object, _ast.AnnAssign) and self.ast_object.target:
             # Handle annotated assignments: var: int = value
             if isinstance(self.ast_object.target, _ast.Name):
                 variables.append(self.ast_object.target.id)
-        
+
         return variables
-    
+
     def _extract_names_from_target(self, target):
         """Helper to extract variable names from assignment targets"""
         names = []
@@ -94,84 +94,85 @@ class AstNode(Node):
                 if isinstance(elt, _ast.Name):
                     names.append(elt.id)
         return names
-    
+
     def extract_function_calls(self) -> list:
         """
         Extract function and method calls from this AST node
         Returns a list of dicts with 'name' and 'args' keys
         """
         calls = []
-        
+
         # Check the main AST object
         calls.extend(self._extract_calls_from_node(self.ast_object))
-        
+
         return calls
-    
+
     def _extract_calls_from_node(self, node, visited=None):
         """Recursively extract function calls from an AST node"""
         if visited is None:
             visited = set()
-        
+
         # Avoid processing the same node multiple times
         node_id = id(node)
         if node_id in visited:
             return []
         visited.add(node_id)
-        
+
         calls = []
-        
+
         if isinstance(node, _ast.Call):
             # Extract function/method call info
             call_info = self._extract_call_info(node)
             if call_info:
                 calls.append(call_info)
-                
+
             # For method chaining, also check the object being called
             if isinstance(node.func, _ast.Attribute):
                 calls.extend(self._extract_calls_from_node(node.func.value, visited))
-            
+
             # Check arguments for nested calls
             for arg in node.args:
                 calls.extend(self._extract_calls_from_node(arg, visited))
-        
+
         elif isinstance(node, _ast.Assign):
             # Only check the value being assigned, not all children (to avoid duplicate processing)
             calls.extend(self._extract_calls_from_node(node.value, visited))
-        
+
         elif isinstance(node, _ast.Expr):
             # Only check the value, not all children
             calls.extend(self._extract_calls_from_node(node.value, visited))
-        
+
         elif isinstance(node, _ast.For):
             # Only check the iterable, don't recursively check all children as they're processed separately
             calls.extend(self._extract_calls_from_node(node.iter, visited))
-        
+
         elif isinstance(node, _ast.If):
             # Only check the test condition, don't recursively check all children as they're processed separately
             calls.extend(self._extract_calls_from_node(node.test, visited))
-        
+
         elif isinstance(node, _ast.Return):
             # Only check the return value
             if node.value:
                 calls.extend(self._extract_calls_from_node(node.value, visited))
-        
+
         elif isinstance(node, _ast.Attribute):
             # For attribute access (like obj.method), check the value
             calls.extend(self._extract_calls_from_node(node.value, visited))
-        
+
         else:
             # For other nodes, check children only if we haven't handled them specifically
             import ast as ast_module
+
             for child in ast_module.iter_child_nodes(node):
                 calls.extend(self._extract_calls_from_node(child, visited))
-        
+
         return calls
-    
+
     def _extract_call_info(self, call_node):
         """Extract structured information from a function call node"""
         if not isinstance(call_node, _ast.Call):
             return None
-        
+
         # Get the function/method name
         if isinstance(call_node.func, _ast.Name):
             func_name = call_node.func.id
@@ -179,112 +180,73 @@ class AstNode(Node):
             func_name = call_node.func.attr
         else:
             return None
-        
+
         # Extract argument information
         args = []
         for arg in call_node.args:
             arg_info = self._extract_arg_info(arg)
             if arg_info:
                 args.append(arg_info)
-        
+
         # Extract keyword arguments
         for keyword in call_node.keywords:
             if keyword.arg:  # keyword.arg can be None for **kwargs
                 arg_info = self._extract_arg_info(keyword.value)
                 if arg_info:
-                    arg_info['name'] = keyword.arg  # Override name with keyword name
+                    arg_info["name"] = keyword.arg  # Override name with keyword name
                     args.append(arg_info)
-        
-        return {
-            'name': func_name,
-            'args': args
-        }
-    
+
+        return {"name": func_name, "args": args}
+
     def _extract_arg_info(self, arg_node):
         """Extract information about a function argument"""
         if isinstance(arg_node, _ast.Name):
-            return {
-                'name': arg_node.id,
-                'type': 'variable',
-                'value': arg_node.id
-            }
+            return {"name": arg_node.id, "type": "variable", "value": arg_node.id}
         elif isinstance(arg_node, _ast.Constant):
             # Handle constants (strings, numbers, etc.)
             value = arg_node.value
             if isinstance(value, bool):  # Check bool first since bool is subclass of int
-                arg_type = 'boolean'
+                arg_type = "boolean"
             elif isinstance(value, str):
-                arg_type = 'string'
+                arg_type = "string"
             elif isinstance(value, (int, float)):
-                arg_type = 'number'
+                arg_type = "number"
             else:
-                arg_type = 'constant'
-            return {
-                'name': repr(value),
-                'type': arg_type,
-                'value': repr(value)
-            }
+                arg_type = "constant"
+            return {"name": repr(value), "type": arg_type, "value": repr(value)}
         elif isinstance(arg_node, _ast.List):
             try:
                 list_value = astunparse.unparse(arg_node).strip()
             except:
-                list_value = 'list'
-            return {
-                'name': 'list',
-                'type': 'list',
-                'value': list_value
-            }
+                list_value = "list"
+            return {"name": "list", "type": "list", "value": list_value}
         elif isinstance(arg_node, _ast.Dict):
             try:
                 dict_value = astunparse.unparse(arg_node).strip()
             except:
-                dict_value = 'dict'
-            return {
-                'name': 'dict',
-                'type': 'dict',
-                'value': dict_value
-            }
+                dict_value = "dict"
+            return {"name": "dict", "type": "dict", "value": dict_value}
         elif isinstance(arg_node, _ast.Call):
             # Nested function call
             try:
                 call_value = astunparse.unparse(arg_node).strip()
             except:
-                call_value = 'function_call'
-            return {
-                'name': 'function_call',
-                'type': 'call',
-                'value': call_value
-            }
+                call_value = "function_call"
+            return {"name": "function_call", "type": "call", "value": call_value}
         elif isinstance(arg_node, _ast.Attribute):
             # Attribute access like obj.attr
             try:
                 attr_name = astunparse.unparse(arg_node).strip()
-                return {
-                    'name': attr_name,
-                    'type': 'attribute',
-                    'value': attr_name
-                }
+                return {"name": attr_name, "type": "attribute", "value": attr_name}
             except:
-                return {
-                    'name': 'attribute',
-                    'type': 'attribute',
-                    'value': 'attribute'
-                }
+                return {"name": "attribute", "type": "attribute", "value": "attribute"}
         else:
             # For other types, try to get a string representation
             try:
                 name = astunparse.unparse(arg_node).strip()
-                return {
-                    'name': name,
-                    'type': 'expression',
-                    'value': name
-                }
+                return {"name": name, "type": "expression", "value": name}
             except:
-                return {
-                    'name': 'unknown',
-                    'type': 'unknown',
-                    'value': 'unknown'
-                }
+                return {"name": "unknown", "type": "unknown", "value": "unknown"}
 
 
 class AstConditionNode(AstNode, ConditionNode):
@@ -322,15 +284,15 @@ class AstConditionNode(AstNode, ConditionNode):
             # Fallback to the original method
             source = astunparse.unparse(self.ast_object)
             loop_statement = source.strip()
-            single_line = ' '.join(loop_statement.splitlines()).strip()
-            if single_line.endswith(':'):
+            single_line = " ".join(loop_statement.splitlines()).strip()
+            if single_line.endswith(":"):
                 single_line = single_line[:-1]
             return single_line
 
         # For if and while statements, extract just the condition
         condition_source = astunparse.unparse(condition_ast).strip()
         # Ensure single line by replacing newlines and extra whitespace
-        single_line = ' '.join(condition_source.splitlines()).strip()
+        single_line = " ".join(condition_source.splitlines()).strip()
         return single_line
 
     def fc_connection(self) -> str:
@@ -345,6 +307,7 @@ class AstConditionNode(AstNode, ConditionNode):
 ###################
 #   FunctionDef   #
 ###################
+
 
 class FunctionDefStart(AstNode, StartNode):
     """
@@ -381,18 +344,16 @@ class FunctionDefArgsInput(AstNode, InputOutputNode):
 
     def func_args_str(self):
         # TODO(important): handle defaults, vararg, kwonlyargs, kw_defaults, kwarg
-        assert isinstance(self.ast_object, _ast.FunctionDef) or \
-               hasattr(self.ast_object, "args")
+        assert isinstance(self.ast_object, _ast.FunctionDef) or hasattr(self.ast_object, "args")
         args = []
         for arg in self.ast_object.args.args:
             args.append(str(arg.arg))
 
-        return ', '.join(args)
+        return ", ".join(args)
 
     def extract_params(self):
         """Extract structured parameter data for React Flow node."""
-        assert isinstance(self.ast_object, _ast.FunctionDef) or \
-               hasattr(self.ast_object, "args")
+        assert isinstance(self.ast_object, _ast.FunctionDef) or hasattr(self.ast_object, "args")
 
         params = []
         args_list = self.ast_object.args.args
@@ -404,30 +365,27 @@ class FunctionDefArgsInput(AstNode, InputOutputNode):
         defaults_offset = num_args - num_defaults
 
         for i, arg in enumerate(args_list):
-            param = {
-                'name': str(arg.arg),
-                'type': self._get_arg_type(arg)
-            }
+            param = {"name": str(arg.arg), "type": self._get_arg_type(arg)}
 
             # Add default value if present
             if i >= defaults_offset:
                 default_index = i - defaults_offset
                 default_value = self._get_default_value(defaults_list[default_index])
                 if default_value is not None:
-                    param['default'] = default_value
+                    param["default"] = default_value
 
             params.append(param)
 
         return params
-    
+
     def _get_arg_type(self, arg):
         """Extract type annotation from function argument if available."""
-        if hasattr(arg, 'annotation') and arg.annotation:
+        if hasattr(arg, "annotation") and arg.annotation:
             try:
                 return astunparse.unparse(arg.annotation).strip()
             except:
-                return 'any'
-        return 'any'
+                return "any"
+        return "any"
 
     def _get_default_value(self, default_node):
         """Extract default value from AST node."""
@@ -495,8 +453,7 @@ class FunctionDef(NodesGroup, AstNode):
             - body_head
             - body_tails
         """
-        assert isinstance(self.ast_object, _ast.FunctionDef) or \
-               hasattr(self.ast_object, "body")
+        assert isinstance(self.ast_object, _ast.FunctionDef) or hasattr(self.ast_object, "body")
         p = parse(self.ast_object.body, **kwargs)
         return p.head, p.tails
 
@@ -505,31 +462,31 @@ class FunctionDef(NodesGroup, AstNode):
 #   For, while    #
 ###################
 
+
 class LoopCondition(AstConditionNode):
     """a AstConditionNode special for Loop"""
 
-    def connect(self, sub_node, direction='') -> None:
+    def connect(self, sub_node, direction="") -> None:
         if direction:
             self.set_connect_direction(direction)
         self.connect_no(sub_node)
 
     def get_yes_label(self) -> str:
-        return 'loop'
+        return "loop"
 
     def get_no_label(self) -> str:
-        return 'exit'
+        return "exit"
 
     def to_react_flow_node(self, position=None):
         # Override to use 'loop' type instead of 'condition' for React Flow
         if position is None:
-            position = {'x': 0, 'y': 0}
+            position = {"x": 0, "y": 0}
 
         # Check if this is a one-line body loop and create combined label
-        label = ' '.join(self.node_text.splitlines()).strip() if self.node_text else ''
+        label = " ".join(self.node_text.splitlines()).strip() if self.node_text else ""
 
         # Only merge if we truly want to merge (not using parent-child relationships)
-        should_merge_label = (self.is_one_line_body() and
-                             not getattr(self, '_prefer_parent_child', False))
+        should_merge_label = self.is_one_line_body() and not getattr(self, "_prefer_parent_child", False)
 
         if should_merge_label:
             try:
@@ -544,34 +501,34 @@ class LoopCondition(AstConditionNode):
                 pass
 
         # Base data structure
-        data = {'label': label}
+        data = {"label": label}
 
         # Extract variables and function calls
         variables = self.extract_variables()
         if variables:
-            data['vars'] = variables
+            data["vars"] = variables
 
         function_calls = self.extract_function_calls()
         if function_calls:
-            data['tasks'] = function_calls
+            data["tasks"] = function_calls
 
         # Extract AST position information
-        if hasattr(self, 'ast_object') and self.ast_object:
+        if hasattr(self, "ast_object") and self.ast_object:
             ast_obj = self.ast_object
-            if hasattr(ast_obj, 'lineno'):
-                data['lineno'] = ast_obj.lineno
-            if hasattr(ast_obj, 'end_lineno'):
-                data['end_lineno'] = ast_obj.end_lineno
-            if hasattr(ast_obj, 'col_offset'):
-                data['col_offset'] = ast_obj.col_offset
-            if hasattr(ast_obj, 'end_col_offset'):
-                data['end_col_offset'] = ast_obj.end_col_offset
+            if hasattr(ast_obj, "lineno"):
+                data["lineno"] = ast_obj.lineno
+            if hasattr(ast_obj, "end_lineno"):
+                data["end_lineno"] = ast_obj.end_lineno
+            if hasattr(ast_obj, "col_offset"):
+                data["col_offset"] = ast_obj.col_offset
+            if hasattr(ast_obj, "end_col_offset"):
+                data["end_col_offset"] = ast_obj.end_col_offset
 
         return {
-            'id': self.node_name,
-            'type': 'loop',  # Use 'loop' type for loop conditions
-            'data': data,
-            'position': position,
+            "id": self.node_name,
+            "type": "loop",  # Use 'loop' type for loop conditions
+            "data": data,
+            "position": position,
         }
 
     def is_one_line_body(self) -> bool:
@@ -587,12 +544,14 @@ class LoopCondition(AstConditionNode):
             if not self.connection_yes or not isinstance(self.connection_yes, Connection):
                 return False
             loop_body = self.connection_yes.next_node
-            one_line_body = isinstance(loop_body, CondYN) and \
-                            isinstance(loop_body.sub, Node) and \
-                            not isinstance(loop_body.sub, NodesGroup) and \
-                            not isinstance(loop_body.sub, ConditionNode) and \
-                            len(loop_body.sub.connections) == 1 and \
-                            loop_body.sub.connections[0].next_node == self
+            one_line_body = (
+                isinstance(loop_body, CondYN)
+                and isinstance(loop_body.sub, Node)
+                and not isinstance(loop_body.sub, NodesGroup)
+                and not isinstance(loop_body.sub, ConditionNode)
+                and len(loop_body.sub.connections) == 1
+                and loop_body.sub.connections[0].next_node == self
+            )
         except Exception as e:
             print(e)
         return one_line_body
@@ -635,9 +594,11 @@ class Loop(NodesGroup, AstNode):
         """
         Parse and Connect loop-body (a node graph) to self.cond_node (LoopCondition), extend `self.tails` with tails got.
         """
-        assert isinstance(self.ast_object, _ast.For) or \
-               isinstance(self.ast_object, _ast.While) or \
-               hasattr(self.ast_object, "body")
+        assert (
+            isinstance(self.ast_object, _ast.For)
+            or isinstance(self.ast_object, _ast.While)
+            or hasattr(self.ast_object, "body")
+        )
 
         progress = parse(self.ast_object.body, **kwargs)
 
@@ -700,6 +661,7 @@ class Loop(NodesGroup, AstNode):
 #   If   #
 ##########
 
+
 class IfCondition(AstConditionNode):
     """a AstConditionNode special for If"""
 
@@ -715,12 +677,14 @@ class IfCondition(AstConditionNode):
         one_line_body = False
         try:
             conn_yes = self.connection_yes
-            one_line_body = isinstance(conn_yes, Connection) and \
-                            isinstance(conn_yes.next_node, CondYN) and \
-                            isinstance(conn_yes.next_node.sub, Node) and \
-                            not isinstance(conn_yes.next_node.sub, NodesGroup) and \
-                            not isinstance(conn_yes.next_node.sub, ConditionNode) and \
-                            not conn_yes.next_node.sub.connections
+            one_line_body = (
+                isinstance(conn_yes, Connection)
+                and isinstance(conn_yes.next_node, CondYN)
+                and isinstance(conn_yes.next_node.sub, Node)
+                and not isinstance(conn_yes.next_node.sub, NodesGroup)
+                and not isinstance(conn_yes.next_node.sub, ConditionNode)
+                and not conn_yes.next_node.sub.connections
+            )
         except Exception as e:
             print(e)
         return one_line_body
@@ -738,9 +702,9 @@ class IfCondition(AstConditionNode):
         no_else = False
         try:
             conn2no = self.connection_no
-            no_else = isinstance(conn2no, Connection) and \
-                      isinstance(conn2no.next_node, CondYN) and \
-                      not conn2no.next_node.sub
+            no_else = (
+                isinstance(conn2no, Connection) and isinstance(conn2no.next_node, CondYN) and not conn2no.next_node.sub
+            )
         except Exception as e:
             print(e)
         return no_else
@@ -749,7 +713,7 @@ class IfCondition(AstConditionNode):
         """
         Is IfCondition suitable for ternary expression (condition ? yes : no)?
         Both yes and no branches should have single statements.
-        
+
         Returns:
             True or False
         """
@@ -757,31 +721,35 @@ class IfCondition(AstConditionNode):
             # Check if both yes and no branches exist and have single statements
             conn_yes = self.connection_yes
             conn_no = self.connection_no
-            
-            yes_single = (isinstance(conn_yes, Connection) and 
-                         isinstance(conn_yes.next_node, CondYN) and
-                         isinstance(conn_yes.next_node.sub, Node) and
-                         not isinstance(conn_yes.next_node.sub, NodesGroup) and
-                         not isinstance(conn_yes.next_node.sub, ConditionNode))
-            
-            no_single = (isinstance(conn_no, Connection) and 
-                        isinstance(conn_no.next_node, CondYN) and
-                        isinstance(conn_no.next_node.sub, Node) and
-                        not isinstance(conn_no.next_node.sub, NodesGroup) and
-                        not isinstance(conn_no.next_node.sub, ConditionNode))
-            
+
+            yes_single = (
+                isinstance(conn_yes, Connection)
+                and isinstance(conn_yes.next_node, CondYN)
+                and isinstance(conn_yes.next_node.sub, Node)
+                and not isinstance(conn_yes.next_node.sub, NodesGroup)
+                and not isinstance(conn_yes.next_node.sub, ConditionNode)
+            )
+
+            no_single = (
+                isinstance(conn_no, Connection)
+                and isinstance(conn_no.next_node, CondYN)
+                and isinstance(conn_no.next_node.sub, Node)
+                and not isinstance(conn_no.next_node.sub, NodesGroup)
+                and not isinstance(conn_no.next_node.sub, ConditionNode)
+            )
+
             return yes_single and no_single
         except Exception as e:
             print(e)
         return False
-    
+
     def is_complex_ternary_candidate(self):
         """Check if this is a condition that should be represented as a complex ternary expression.
-        
+
         This handles cases where branches contain complex structures (NodesGroup) that would
         normally create depth > 1 violations. Only use complex ternary when the condition
         is nested and would otherwise violate depth limits.
-        
+
         Returns:
             True if this should be a complex ternary, False otherwise
         """
@@ -789,171 +757,175 @@ class IfCondition(AstConditionNode):
             # Check if both yes and no branches exist
             conn_yes = self.connection_yes
             conn_no = self.connection_no
-            
+
             if not (isinstance(conn_yes, Connection) and isinstance(conn_no, Connection)):
                 return False
-                
+
             # Check if branches have CondYN wrappers
             yes_branch = conn_yes.next_node
             no_branch = conn_no.next_node
-            
+
             if not (isinstance(yes_branch, CondYN) and isinstance(no_branch, CondYN)):
                 return False
-            
+
             # Basic requirement: both branches must have content
             if not (yes_branch.sub is not None and no_branch.sub is not None):
                 return False
-            
+
             # Key logic: Only use complex ternary if this condition would cause depth violations
             # This happens when the condition is nested inside another condition/loop
-            
+
             # Check if at least one branch contains complex content (NodesGroup with multiple statements)
-            yes_is_complex = (hasattr(yes_branch.sub, 'head') and hasattr(yes_branch.sub, 'tails'))
-            no_is_complex = (hasattr(no_branch.sub, 'head') and hasattr(no_branch.sub, 'tails'))
-            
+            yes_is_complex = hasattr(yes_branch.sub, "head") and hasattr(yes_branch.sub, "tails")
+            no_is_complex = hasattr(no_branch.sub, "head") and hasattr(no_branch.sub, "tails")
+
             # If neither branch is complex, prefer simple ternary or regular condition
             if not (yes_is_complex or no_is_complex):
                 return False
-            
+
             # Check if this condition is nested (which would cause depth violations)
             # This is a simplified check - in practice, the export logic will determine
             # if depth violations would occur, but we can make a reasonable guess here
-            
+
             # For now, use complex ternary when we have complex branches
             # The export logic will filter appropriately based on actual depth constraints
             return True
-            
+
         except Exception:
             return False
-    
+
     def _extract_branch_content(self, branch_node):
         """Extract the content from a branch node for complex ternary formatting.
-        
+
         Args:
             branch_node: The CondYN branch node to extract content from
-            
+
         Returns:
             String representation of the branch content
         """
         try:
             if not isinstance(branch_node, CondYN) or not branch_node.sub:
                 return ""
-            
+
             sub_node = branch_node.sub
-            
+
             # Handle NodesGroup (complex branches with multiple statements)
             if isinstance(sub_node, NodesGroup):
                 # Try AST-based extraction first for better formatting
                 # We need to determine which branch this is (YES or NO)
-                is_yes_branch = (hasattr(self, 'connection_yes') and 
-                               self.connection_yes and 
-                               self.connection_yes.next_node == branch_node)
-                
+                is_yes_branch = (
+                    hasattr(self, "connection_yes")
+                    and self.connection_yes
+                    and self.connection_yes.next_node == branch_node
+                )
+
                 ast_content = self._extract_from_ast_branch(is_yes_branch)
                 if ast_content:
                     return ast_content
                 # Fallback to node-based extraction
                 return self._extract_nodesgroup_content(sub_node)
-            
+
             # Handle single Node
             elif isinstance(sub_node, Node):
                 # For single nodes, also try AST-based extraction for NO branch
-                is_no_branch = (hasattr(self, 'connection_no') and 
-                               self.connection_no and 
-                               self.connection_no.next_node == branch_node)
-                
+                is_no_branch = (
+                    hasattr(self, "connection_no")
+                    and self.connection_no
+                    and self.connection_no.next_node == branch_node
+                )
+
                 if is_no_branch:
                     ast_content = self._extract_from_ast_branch(False)
                     if ast_content:
                         return ast_content
-                
+
                 return sub_node.node_text.strip() if sub_node.node_text else ""
-            
+
             return ""
-            
+
         except Exception:
             return ""
-    
+
     def _extract_from_ast_branch(self, is_yes_branch=True):
         """Extract branch content directly from the original AST for better formatting.
-        
+
         Args:
             is_yes_branch: True for YES branch, False for NO branch
-            
+
         Returns:
             String representation of the branch content or None if not available
         """
         try:
             # Check if we have access to the original AST
-            if not (hasattr(self, 'ast_object') and self.ast_object):
+            if not (hasattr(self, "ast_object") and self.ast_object):
                 return None
-            
+
             # Get the appropriate branch from the AST
             if is_yes_branch:
-                if not hasattr(self.ast_object, 'body'):
+                if not hasattr(self.ast_object, "body"):
                     return None
                 ast_statements = self.ast_object.body
             else:
-                if not hasattr(self.ast_object, 'orelse'):
+                if not hasattr(self.ast_object, "orelse"):
                     return None
                 ast_statements = self.ast_object.orelse
-            
+
             content_parts = []
-            
+
             for stmt in ast_statements:
                 if isinstance(stmt, _ast.For):
                     # Format the for loop properly with original structure
                     target = astunparse.unparse(stmt.target).strip()
                     iter_expr = astunparse.unparse(stmt.iter).strip()
                     loop_header = f"for {target} in {iter_expr}:"
-                    
+
                     # Get loop body with proper indentation
                     loop_body = []
                     for body_stmt in stmt.body:
                         body_text = astunparse.unparse(body_stmt).strip()
                         loop_body.append(f"    {body_text}")
-                    
+
                     if loop_body:
                         loop_content = f"{loop_header}\n" + "\n".join(loop_body)
                     else:
                         loop_content = loop_header
-                    
+
                     content_parts.append(loop_content)
                 else:
                     # Regular statement
                     stmt_text = astunparse.unparse(stmt).strip()
                     content_parts.append(stmt_text)
-            
+
             return "\n".join(content_parts) if content_parts else None
-            
+
         except Exception:
             return None
-    
+
     def _extract_nodesgroup_content(self, nodes_group):
         """Extract formatted content from a NodesGroup for complex ternary.
-        
+
         Args:
             nodes_group: NodesGroup containing multiple statements
-            
+
         Returns:
             Properly formatted string representation
         """
         try:
             content_parts = []
             visited = set()
-            
+
             # Traverse through the NodesGroup to collect all content
             current_node = nodes_group.head
             while current_node and id(current_node) not in visited:
                 visited.add(id(current_node))
-                
+
                 # Handle Loop nodes specially to get the original for loop format
-                if hasattr(current_node, 'cond_node') and hasattr(current_node.cond_node, 'ast_object'):
+                if hasattr(current_node, "cond_node") and hasattr(current_node.cond_node, "ast_object"):
                     # This is a Loop node - extract the original loop format
                     loop_content = self._format_loop_content(current_node.cond_node)
                     if loop_content:
                         content_parts.append(loop_content)
-                elif hasattr(current_node, 'node_text') and current_node.node_text:
+                elif hasattr(current_node, "node_text") and current_node.node_text:
                     # Check if this is a loop condition that needs special formatting
                     if isinstance(current_node, LoopCondition):
                         loop_content = self._format_loop_content(current_node)
@@ -961,116 +933,114 @@ class IfCondition(AstConditionNode):
                             content_parts.append(loop_content)
                     else:
                         content_parts.append(current_node.node_text.strip())
-                
+
                 # Move to next node by following connections
                 next_node = None
-                if hasattr(current_node, 'connections') and current_node.connections:
+                if hasattr(current_node, "connections") and current_node.connections:
                     for conn in current_node.connections:
-                        if (hasattr(conn, 'next_node') and conn.next_node and 
-                            id(conn.next_node) not in visited):
+                        if hasattr(conn, "next_node") and conn.next_node and id(conn.next_node) not in visited:
                             next_node = conn.next_node
                             break
-                
+
                 # For Loop nodes, also check tails as they contain following statements
-                if not next_node and hasattr(current_node, 'tails') and current_node.tails:
+                if not next_node and hasattr(current_node, "tails") and current_node.tails:
                     for tail in current_node.tails:
                         if tail and id(tail) not in visited:
                             next_node = tail
                             break
-                
+
                 current_node = next_node
-            
+
             # Join with newlines for proper formatting
-            return '\n'.join(content_parts)
-            
+            return "\n".join(content_parts)
+
         except Exception:
             return ""
-    
+
     def _format_loop_content(self, loop_node):
         """Format loop content for complex ternary display.
-        
+
         Args:
             loop_node: LoopCondition node to format
-            
+
         Returns:
             Properly formatted loop content
         """
         try:
             # Get the original AST loop text if available
-            if hasattr(loop_node, 'ast_object') and loop_node.ast_object:
+            if hasattr(loop_node, "ast_object") and loop_node.ast_object:
                 # Extract the loop header
                 ast_obj = loop_node.ast_object
-                if hasattr(ast_obj, 'target') and hasattr(ast_obj, 'iter'):
+                if hasattr(ast_obj, "target") and hasattr(ast_obj, "iter"):
                     target = astunparse.unparse(ast_obj.target).strip()
                     iter_expr = astunparse.unparse(ast_obj.iter).strip()
                     loop_header = f"for {target} in {iter_expr}:"
-                    
+
                     # Get body content from the original AST
                     body_content = []
-                    if hasattr(ast_obj, 'body') and ast_obj.body:
+                    if hasattr(ast_obj, "body") and ast_obj.body:
                         for stmt in ast_obj.body:
                             stmt_text = astunparse.unparse(stmt).strip()
                             body_content.append(f"    {stmt_text}")
-                    
+
                     if body_content:
                         return f"{loop_header}\n" + "\n".join(body_content)
                     else:
                         return loop_header
-            
+
             # Fallback to node_text
-            return loop_node.node_text.strip() if hasattr(loop_node, 'node_text') and loop_node.node_text else ""
-            
+            return loop_node.node_text.strip() if hasattr(loop_node, "node_text") and loop_node.node_text else ""
+
         except Exception:
             return ""
 
     def to_react_flow_node(self, position=None):
         # Check for complex ternary (with NodesGroup branches) first
         # Only use it if this node has been marked for complex ternary by export logic
-        if (self.is_complex_ternary_candidate() and
-            getattr(self, '_use_complex_ternary', False)):
+        if self.is_complex_ternary_candidate() and getattr(self, "_use_complex_ternary", False):
             try:
                 # Get the condition text
-                condition_text = ' '.join(self.node_text.splitlines()).strip() if self.node_text else ''
+                condition_text = " ".join(self.node_text.splitlines()).strip() if self.node_text else ""
 
                 # Extract content from both branches
                 yes_text = self._extract_branch_content(self.connection_yes.next_node)
                 no_text = self._extract_branch_content(self.connection_no.next_node)
 
                 # Create complex ternary expression
-                label = f'{condition_text} ? {yes_text} : {no_text}'
+                label = f"{condition_text} ? {yes_text} : {no_text}"
 
                 if position is None:
-                    position = {'x': 0, 'y': 0}
+                    position = {"x": 0, "y": 0}
 
                 # Base data structure
-                data = {'label': label}
+                data = {"label": label}
 
                 # Extract variables and function calls
                 variables = self.extract_variables()
                 if variables:
-                    data['vars'] = variables
+                    data["vars"] = variables
 
                 function_calls = self.extract_function_calls()
                 if function_calls:
-                    data['tasks'] = function_calls
+                    data["tasks"] = function_calls
 
                 # Extract AST position information
-                if hasattr(self, 'ast_object') and self.ast_object:
+                if hasattr(self, "ast_object") and self.ast_object:
                     ast_obj = self.ast_object
-                    if hasattr(ast_obj, 'lineno'):
-                        data['lineno'] = ast_obj.lineno
-                    if hasattr(ast_obj, 'end_lineno'):
-                        data['end_lineno'] = ast_obj.end_lineno
-                    if hasattr(ast_obj, 'col_offset'):
-                        data['col_offset'] = ast_obj.col_offset
-                    if hasattr(ast_obj, 'end_col_offset'):
-                        data['end_col_offset'] = ast_obj.end_col_offset
+                    if hasattr(ast_obj, "lineno"):
+                        data["lineno"] = ast_obj.lineno
+                    if hasattr(ast_obj, "end_lineno"):
+                        data["end_lineno"] = ast_obj.end_lineno
+                    if hasattr(ast_obj, "col_offset"):
+                        data["col_offset"] = ast_obj.col_offset
+                    if hasattr(ast_obj, "end_col_offset"):
+                        data["end_col_offset"] = ast_obj.end_col_offset
 
                 return {
-                    'id': self.node_name,
-                    'type': 'condition',
-                    'data': data,
-                    'position': position,
+                    "id": self.node_name,
+                    "type": "condition",
+                    "data": data,
+                    "position": position,
                 }
             except (AttributeError, TypeError):
                 # Fall back to regular condition node
@@ -1078,51 +1048,51 @@ class IfCondition(AstConditionNode):
 
         # Check if this should be a simple ternary expression (only if explicitly requested)
         # For now, disable simple ternary to use parent-child structure instead
-        use_simple_ternary = getattr(self, '_use_simple_ternary', False)
+        use_simple_ternary = getattr(self, "_use_simple_ternary", False)
         if use_simple_ternary and self.is_ternary_candidate():
             try:
                 # Get the condition text
-                condition_text = ' '.join(self.node_text.splitlines()).strip() if self.node_text else ''
+                condition_text = " ".join(self.node_text.splitlines()).strip() if self.node_text else ""
 
                 # Get yes and no branch texts
                 yes_text = self.connection_yes.next_node.sub.node_text.strip()
                 no_text = self.connection_no.next_node.sub.node_text.strip()
 
                 # Create ternary expression with consistent quote style
-                label = f'{condition_text} ? {yes_text} : {no_text}'
+                label = f"{condition_text} ? {yes_text} : {no_text}"
 
                 if position is None:
-                    position = {'x': 0, 'y': 0}
+                    position = {"x": 0, "y": 0}
 
                 # Base data structure
-                data = {'label': label}
+                data = {"label": label}
 
                 # Extract variables and function calls
                 variables = self.extract_variables()
                 if variables:
-                    data['vars'] = variables
+                    data["vars"] = variables
 
                 function_calls = self.extract_function_calls()
                 if function_calls:
-                    data['tasks'] = function_calls
+                    data["tasks"] = function_calls
 
                 # Extract AST position information
-                if hasattr(self, 'ast_object') and self.ast_object:
+                if hasattr(self, "ast_object") and self.ast_object:
                     ast_obj = self.ast_object
-                    if hasattr(ast_obj, 'lineno'):
-                        data['lineno'] = ast_obj.lineno
-                    if hasattr(ast_obj, 'end_lineno'):
-                        data['end_lineno'] = ast_obj.end_lineno
-                    if hasattr(ast_obj, 'col_offset'):
-                        data['col_offset'] = ast_obj.col_offset
-                    if hasattr(ast_obj, 'end_col_offset'):
-                        data['end_col_offset'] = ast_obj.end_col_offset
+                    if hasattr(ast_obj, "lineno"):
+                        data["lineno"] = ast_obj.lineno
+                    if hasattr(ast_obj, "end_lineno"):
+                        data["end_lineno"] = ast_obj.end_lineno
+                    if hasattr(ast_obj, "col_offset"):
+                        data["col_offset"] = ast_obj.col_offset
+                    if hasattr(ast_obj, "end_col_offset"):
+                        data["end_col_offset"] = ast_obj.end_col_offset
 
                 return {
-                    'id': self.node_name,
-                    'type': 'condition',
-                    'data': data,
-                    'position': position,
+                    "id": self.node_name,
+                    "type": "condition",
+                    "data": data,
+                    "position": position,
                 }
             except (AttributeError, TypeError):
                 # Fall back to regular condition node
@@ -1170,8 +1140,7 @@ class If(NodesGroup, AstNode):
         """
         Parse and Connect if-body (a node graph) to self.cond_node (IfCondition).
         """
-        assert isinstance(self.ast_object, _ast.If) or \
-               hasattr(self.ast_object, "body")
+        assert isinstance(self.ast_object, _ast.If) or hasattr(self.ast_object, "body")
 
         progress = parse(self.ast_object.body, **kwargs)
 
@@ -1193,8 +1162,7 @@ class If(NodesGroup, AstNode):
         """
         Parse and Connect else-body (a node graph) to self.cond_node (IfCondition).
         """
-        assert isinstance(self.ast_object, _ast.If) or \
-               hasattr(self.ast_object, "orelse")
+        assert isinstance(self.ast_object, _ast.If) or hasattr(self.ast_object, "orelse")
 
         progress = parse(self.ast_object.orelse, **kwargs)
 
@@ -1264,6 +1232,7 @@ class If(NodesGroup, AstNode):
 #   Common, Call   #
 ####################
 
+
 class CommonOperation(AstNode, OperationNode):
     """
     CommonOperation is an OperationNode for any _ast.AST (any sentence in python source code)
@@ -1300,14 +1269,14 @@ class BreakContinueSubroutine(AstNode, SubroutineNode):
         AstNode.__init__(self, ast_break_continue, **kwargs)
         SubroutineNode.__init__(self, self.ast_to_source())
 
-    def connect(self, sub_node, direction='') -> None:
+    def connect(self, sub_node, direction="") -> None:
         # a BreakContinueSubroutine should connect to nothing
         pass
 
 
 class YieldOutput(AstNode, InputOutputNode):
     """
-     YieldOutput is a InputOutputNode (Output) for _ast.Yield (yield sentence in python source code)
+    YieldOutput is a InputOutputNode (Output) for _ast.Yield (yield sentence in python source code)
     """
 
     def __init__(self, ast_return: _ast.Return, **kwargs):
@@ -1319,9 +1288,10 @@ class YieldOutput(AstNode, InputOutputNode):
 #   Return   #
 ##############
 
+
 class ReturnOutput(AstNode, InputOutputNode):
     """
-     ReturnOutput is a InputOutputNode (Output) for _ast.Return (return sentence in python source code)
+    ReturnOutput is a InputOutputNode (Output) for _ast.Return (return sentence in python source code)
     """
 
     def __init__(self, ast_return: _ast.Return, **kwargs):
@@ -1385,7 +1355,7 @@ class Return(NodesGroup, AstNode):
     #     """
     #     return NodesGroup.fc_connection(self)
     #
-    def connect(self, sub_node, direction='') -> None:
+    def connect(self, sub_node, direction="") -> None:
         """
         Return should not be connected with anything
         """
@@ -1471,8 +1441,7 @@ class MatchCase(NodesGroup, AstNode):
         self.parse_body(**kwargs)
 
     def parse_body(self, **kwargs) -> None:
-        assert isinstance(self.ast_object, _ast.match_case) or \
-               hasattr(self.ast_object, "body")
+        assert isinstance(self.ast_object, _ast.match_case) or hasattr(self.ast_object, "body")
 
         progress = parse(self.ast_object.body)
 
@@ -1492,12 +1461,14 @@ class MatchCase(NodesGroup, AstNode):
         """
         conn_yes = self.cond_node.connection_yes
         try:
-            one_line_body = isinstance(conn_yes, Connection) and \
-                            isinstance(conn_yes.next_node, CondYN) and \
-                            isinstance(conn_yes.next_node.sub, Node) and \
-                            not isinstance(conn_yes.next_node.sub, NodesGroup) and \
-                            not isinstance(conn_yes.next_node.sub, ConditionNode) and \
-                            not conn_yes.next_node.sub.connections
+            one_line_body = (
+                isinstance(conn_yes, Connection)
+                and isinstance(conn_yes.next_node, CondYN)
+                and isinstance(conn_yes.next_node.sub, Node)
+                and not isinstance(conn_yes.next_node.sub, NodesGroup)
+                and not isinstance(conn_yes.next_node.sub, ConditionNode)
+                and not conn_yes.next_node.sub.connections
+            )
         except Exception:
             # print(e)
             one_line_body = False
@@ -1518,7 +1489,7 @@ class MatchCase(NodesGroup, AstNode):
 
             body = conn_yes.next_node.sub
 
-            simplified = OperationNode(f'{body.node_text} {self.cond_node.node_text}')
+            simplified = OperationNode(f"{body.node_text} {self.cond_node.node_text}")
 
             simplified.node_name = self.head.node_name + "inline"
             self.head = simplified
@@ -1598,8 +1569,7 @@ class Match(NodesGroup, AstNode):
         """
         Parse and Connect cases of the match
         """
-        assert isinstance(self.ast_object, _ast.Match) or \
-               hasattr(self.ast_object, "cases")
+        assert isinstance(self.ast_object, _ast.Match) or hasattr(self.ast_object, "cases")
 
         last_case = self.head  # at first, it's a transparent node
         for match_case in self.ast_object.cases:
@@ -1660,9 +1630,7 @@ if sys.version_info < (3, 10):
 # Special sentence: cond | loop | ctrl
 # TODO: Try, With
 
-__func_stmts = {
-    _ast.FunctionDef: FunctionDef
-}
+__func_stmts = {_ast.FunctionDef: FunctionDef}
 
 __cond_stmts = {
     _ast.If: If,
@@ -1690,6 +1658,7 @@ class ParseProcessGraph(NodesGroup):
     """
     ParseGraph is a NodesGroup for parse process result.
     """
+
     pass
 
 
@@ -1745,8 +1714,7 @@ def parse(ast_list: List[_ast.AST], **kwargs) -> ParseProcessGraph:
 
             # ConditionNode alignment support (Issue#14)
             # XXX: It's ugly to handle it here. But I have no idea, for this moment, to make it ELEGANT.
-            if isinstance(tail_node, If) and isinstance(node, If) and \
-                    kwargs.get("conds_align", False):
+            if isinstance(tail_node, If) and isinstance(node, If) and kwargs.get("conds_align", False):
                 tail_node.align()
 
             tail_node = node
