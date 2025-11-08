@@ -2860,5 +2860,72 @@ def main() -> list[str]:
     )
 
 
+def test_export_from_code_three_level_loops_with_condition_after_innermost():
+    """Test 3-level nested loops with condition after innermost loop.
+
+    This test covers the bug where the middle loop would lose its parent
+    when there's a condition (if/elif/else) after the 3rd level nested loop
+    at the same level as the middle loop.
+
+    The bug occurred because loop nodes were being incorrectly identified as
+    "multi-branch targets" and excluded from parent assignment.
+    """
+    code = """
+@flow
+def main() -> list[str]:
+    for query in queries:
+        messages_response = fetch_messages()
+        for message in messages_response.messages:
+            analysis = analyze_email(message)
+            for character in analysis.reason:
+                if character == "b":
+                    print("b is here")
+            if analysis.is_related:
+                process_result(message)
+    """
+    flow = ReactFlow.from_code(code, field="main", simplify=False, inner=False)
+    result = flow.export()
+
+    # Find all loop nodes
+    loops = [n for n in result["nodes"] if n["type"] == "loop"]
+    assert len(loops) == 3, f"Expected 3 loops, got {len(loops)}"
+
+    # Sort by line number for identification
+    loops.sort(key=lambda x: x["data"]["lineno"])
+
+    outer_loop = loops[0]  # for query in queries
+    middle_loop = loops[1]  # for message in messages_response.messages
+    inner_loop = loops[2]  # for character in analysis.reason
+
+    # Verify loop hierarchy - this is the critical test for the bug fix
+    assert "parentId" not in outer_loop, "Outermost loop should have no parent"
+
+    assert (
+        middle_loop.get("parentId") == outer_loop["id"]
+    ), f"Middle loop should have outer loop as parent, got {middle_loop.get('parentId')}"
+
+    assert (
+        inner_loop.get("parentId") == middle_loop["id"]
+    ), f"Inner loop should have middle loop as parent, got {inner_loop.get('parentId')}"
+
+    # Verify that the condition inside the middle loop is properly nested
+    condition_nodes = [n for n in result["nodes"] if n["type"] == "condition"]
+
+    # There should be 2 conditions: one inside inner loop, one after it
+    assert (
+        len(condition_nodes) == 2
+    ), f"Expected 2 condition nodes, got {len(condition_nodes)}"
+
+    # The 'if analysis.is_related' condition should be a child of middle loop
+    analysis_condition = next(
+        (n for n in condition_nodes if "is_related" in n["data"]["label"]),
+        None,
+    )
+    assert analysis_condition is not None, "Should find 'is_related' condition"
+    assert (
+        analysis_condition.get("parentId") == middle_loop["id"]
+    ), f"Condition should be child of middle loop, got {analysis_condition.get('parentId')}"
+
+
 if __name__ == "__main__":
     pytest.main([__file__])

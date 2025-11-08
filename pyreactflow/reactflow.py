@@ -1223,31 +1223,35 @@ class ReactFlow(NodesGroup):
         """Process regular nodes with simplified parent assignment based on actual containment."""
         # Check if this node is a direct target of a multi-branch edge from a TOP-LEVEL condition
         # These nodes use edges for control flow and shouldn't have structural parents
+        # IMPORTANT: This check should NOT apply to loop nodes, as they need structural parents
         node_id = react_node["id"]
         is_top_level_multibranch_target = False
 
-        # Find all condition nodes and their parent status
-        condition_nodes_map = {
-            react["id"]: react
-            for orig, react in all_nodes
-            if react["type"] == "condition"
-        }
+        # Only check multi-branch target logic for non-loop nodes
+        # Loop nodes should always get their structural parent assigned based on AST containment
+        if react_node["type"] != "loop":
+            # Find all condition nodes and their parent status
+            condition_nodes_map = {
+                react["id"]: react
+                for orig, react in all_nodes
+                if react["type"] == "condition"
+            }
 
-        for edge in all_edges:
-            if edge["target"] == node_id and edge["source"] in condition_nodes_map:
-                label = edge.get("label", "")
-                # Check if this is a multi-branch edge (if/elif/else)
-                if (
-                    label.startswith("if ")
-                    or label.startswith("elif ")
-                    or label == "else"
-                ):
-                    # Check if the source condition has a parent
-                    source_condition = condition_nodes_map[edge["source"]]
-                    if "parentId" not in source_condition:
-                        # This is a multi-branch edge from a top-level condition
-                        is_top_level_multibranch_target = True
-                        break
+            for edge in all_edges:
+                if edge["target"] == node_id and edge["source"] in condition_nodes_map:
+                    label = edge.get("label", "")
+                    # Check if this is a multi-branch edge (if/elif/else)
+                    if (
+                        label.startswith("if ")
+                        or label.startswith("elif ")
+                        or label == "else"
+                    ):
+                        # Check if the source condition has a parent
+                        source_condition = condition_nodes_map[edge["source"]]
+                        if "parentId" not in source_condition:
+                            # This is a multi-branch edge from a top-level condition
+                            is_top_level_multibranch_target = True
+                            break
 
         # If this is a direct target of a multi-branch edge from a top-level condition,
         # don't assign structural parent. The control flow is already represented by the labeled edge
